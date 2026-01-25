@@ -1,4 +1,4 @@
-"""Base platform for Kocom Wallpad."""
+"""Kocom 월패드 기본 엔티티."""
 
 from __future__ import annotations
 
@@ -28,10 +28,10 @@ ENTITY_DESCRIPTION_MAP = {
 
 
 class KocomBaseEntity(RestoreEntity):
-    """Base class for Kocom entities."""
+    """모든 Kocom 엔티티의 기본 클래스."""
 
     def __init__(self, gateway, device) -> None:
-        """Initialize the base entity."""
+        """기본 엔티티를 초기화합니다."""
         super().__init__()
         self.gateway = gateway
         self._device = device
@@ -55,6 +55,7 @@ class KocomBaseEntity(RestoreEntity):
         
     @property
     def format_key(self) -> str:
+        """엔티티 키를 포맷팅합니다."""
         if self._device.key.sub_type == SubType.NONE:
             return self._device.key.device_type.name.lower()
         else:
@@ -62,6 +63,7 @@ class KocomBaseEntity(RestoreEntity):
 
     @property
     def format_translation_placeholders(self) -> str:
+        """번역 플레이스홀더를 포맷팅합니다."""
         if self._device.key.sub_type == SubType.NONE:
             return f"{str(self._device.key.room_index)}-{str(self._device.key.device_index)}"
         else:
@@ -69,18 +71,20 @@ class KocomBaseEntity(RestoreEntity):
 
     @property
     def format_identifiers(self) -> str:
+        """디바이스 식별자를 포맷팅합니다."""
         if self._device.key.device_type in {
             DeviceType.VENTILATION, DeviceType.GASVALVE, DeviceType.ELEVATOR, DeviceType.MOTION
         }:
-            return f"KOCOM"
+            return "KOCOM"
         elif self._device.key.device_type in {
             DeviceType.LIGHT, DeviceType.LIGHTCUTOFF, DeviceType.DIMMINGLIGHT
         }:
-            return f"KOCOM LIGHT"
+            return "KOCOM LIGHT"
         else:
             return f"KOCOM {self._device.key.device_type.name}"
 
     async def async_added_to_hass(self):
+        """HA에 엔티티가 추가될 때 호출됩니다."""
         sig = self.gateway.async_signal_device_updated(self._device.key.unique_id)
 
         @callback
@@ -90,6 +94,7 @@ class KocomBaseEntity(RestoreEntity):
         self._unsubs.append(async_dispatcher_connect(self.hass, sig, _handle_update))
 
     async def async_will_remove_from_hass(self) -> None:
+        """HA에서 엔티티가 제거될 때 호출됩니다."""
         for unsub in self._unsubs:
             try:
                 unsub()
@@ -99,10 +104,12 @@ class KocomBaseEntity(RestoreEntity):
 
     @callback
     def update_from_state(self) -> None:
+        """디바이스 상태로부터 엔티티 상태를 업데이트합니다."""
         self.async_write_ha_state()
 
     @property
     def extra_restore_state_data(self) -> RestoredExtraData:
+        """복원 시 필요한 추가 데이터를 저장합니다."""
         return RestoredExtraData({
             "packet": getattr(self._device, "_packet", bytes()).hex(),
             "device_storage": self.gateway.controller._device_storage

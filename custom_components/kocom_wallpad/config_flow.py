@@ -1,4 +1,4 @@
-"""Config flow for Kocom Wallpad."""
+"""Kocom 월패드 설정 흐름(Config Flow)."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ from .const import DOMAIN, DEFAULT_TCP_PORT
 
 
 class KocomConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Config flow for Kocom Wallpad."""
+    """Kocom 월패드 설정을 처리하는 클래스."""
 
     VERSION = 1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle a flow initialized by the user."""
+        """사용자 입력을 처리합니다."""
         errors: dict[str, str] = {}
 
         if user_input is not None:

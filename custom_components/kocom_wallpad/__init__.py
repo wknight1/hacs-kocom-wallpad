@@ -1,4 +1,4 @@
-"""Component setup for Kocom Wallpad."""
+"""Kocom 월패드 컴포넌트 설정."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from .gateway import KocomGateway
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Kocom Wallpad from a config entry."""
+    """Config Entry로부터 Kocom 월패드를 설정합니다."""
     host: str = entry.data[CONF_HOST]
     port: int = entry.data[CONF_PORT]
 
@@ -30,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Config Entry를 언로드합니다."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         gateway: KocomGateway = hass.data[DOMAIN].pop(entry.entry_id)
         await gateway.async_stop()

@@ -1,4 +1,4 @@
-"""Constants for Kocom Wallpad."""
+"""Kocom 월패드 상수 정의."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ SEND_RETRY_GAP = 0.15
 CMD_CONFIRM_TIMEOUT = 1.0  # 보낸 뒤 상태 확인을 기다리는 최대 시간
 
 class DeviceType(IntEnum):
-    """Device types."""
+    """디바이스 타입 정의."""
     UNKNOWN = 0
     LIGHT = 1
     LIGHTCUTOFF = 2
@@ -46,7 +46,7 @@ class DeviceType(IntEnum):
 
 
 class SubType(IntEnum):
-    """Sub types."""
+    """서브 타입 정의 (센서 종류 등)."""
     NONE = 0
     DIRECTION = 1
     FLOOR = 2
