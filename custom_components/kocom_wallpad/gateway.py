@@ -142,9 +142,30 @@ class KocomGateway:
         self._force_register_uid: str | None = None
         self._consecutive_failures: int = 0
 
+    async def _async_register_gateway_device(self) -> None:
+        """게이트웨이 자체를 HA 장치 레지스트리에 등록합니다 (via_device 이슈 해결)."""
+        from homeassistant.helpers import device_registry as dr
+        from .const import DOMAIN
+        
+        dev_reg = dr.async_get(self.hass)
+        dev_reg.async_get_or_create(
+            config_entry_id=self.entry.entry_id,
+            identifiers={(DOMAIN, self.host)},
+            manufacturer="KOCOM Co., Ltd",
+            model="EW11 Wallpad Gateway",
+            name=f"Kocom Gateway ({self.host})",
+            configuration_url=f"http://{self.host}" if self.port else None
+        )
+        LOGGER.debug("Gateway: 기기 레지스트리 등록 완료 (%s)", self.host)
+
     async def async_start(self) -> None:
         """게이트웨이를 시작하고 통신 루프를 가동합니다."""
         LOGGER.info("Gateway: 서비스를 시작합니다. (%s:%s)", self.host, self.port or "Serial")
+        
+        # 1. 게이트웨이 기기 등록 (최우선)
+        await self._async_register_gateway_device()
+        
+        # 2. 연결 시도
         try:
             await self.conn.open()
         except Exception as e:
@@ -155,7 +176,7 @@ class KocomGateway:
         self._task_reader = asyncio.create_task(self._read_loop())
         self._task_sender = asyncio.create_task(self._sender_loop())
         
-        # 기기 탐색 강제 실행 (연결 후 잠시 대기)
+        # 기기 탐색 강제 실행
         asyncio.create_task(self._force_discovery())
 
     async def _force_discovery(self) -> None:

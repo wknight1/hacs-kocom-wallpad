@@ -33,10 +33,13 @@ class AsyncConnection:
         if self._is_connected():
             return
 
+        # 이전 연결이 완전히 닫히고 서버(EW11) 측 세션이 정리될 시간을 확보
+        await asyncio.sleep(0.1)
+        
         LOGGER.debug("Transport: 연결 시도 중... (Host: %s, Port: %s)", self.host, self.port)
         try:
             if self.port is None:
-                # 시리얼 라이브러리를 여기서만 임포트하여 블로킹 방지
+                # 성능 개선된 fast 라이브러리 사용
                 import serial_asyncio_fast
                 self._reader, self._writer = await serial_asyncio_fast.open_serial_connection(
                     url=self.host, baudrate=self.serial_baud
