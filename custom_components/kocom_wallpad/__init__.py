@@ -7,11 +7,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_HOST, CONF_PORT, EVENT_HOMEASSISTANT_STOP
 
 from .const import DOMAIN, PLATFORMS
-from .gateway import KocomGateway
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Config Entry로부터 Kocom 월패드를 설정합니다."""
+    from .gateway import KocomGateway
+    
     host: str = entry.data[CONF_HOST]
     port: int = entry.data[CONF_PORT]
 
@@ -32,6 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Config Entry를 언로드합니다."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        from .gateway import KocomGateway
         gateway: KocomGateway = hass.data[DOMAIN].pop(entry.entry_id)
         await gateway.async_stop()
     return unload_ok

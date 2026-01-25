@@ -6,20 +6,17 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Tuple, List, Callable
 
-from homeassistant.core import HomeAssistant, Event
+from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 
 from .const import (
     LOGGER,
     RECV_POLL_SEC,
-    IDLE_GAP_SEC,
     SEND_RETRY_MAX,
     SEND_RETRY_GAP,
 )
 from .models import DeviceKey, DeviceState
-from .transport import AsyncConnection
-from .controller import KocomController
 
 
 @dataclass(slots=True)
@@ -125,6 +122,9 @@ class KocomGateway:
         port: int | None
     ) -> None:
         """게이트웨이를 초기화합니다."""
+        from .transport import AsyncConnection
+        from .controller import KocomController
+
         self.hass = hass
         self.entry = entry
         self.host = host
@@ -145,222 +145,65 @@ class KocomGateway:
     async def async_start(self) -> None:
         """게이트웨이를 시작하고 통신 루프를 가동합니다."""
         LOGGER.info("Gateway: 서비스를 시작합니다. (%s:%s)", self.host, self.port or "Serial")
-        await self.conn.open()
+        try:
+            await self.conn.open()
+        except Exception as e:
+            LOGGER.error("Gateway: 초기 연결 실패 (백그라운드에서 재시도): %s", e)
+            
         self._last_rx_monotonic = self.conn.idle_since()
         self._last_tx_monotonic = self.conn.idle_since()
         self._task_reader = asyncio.create_task(self._read_loop())
         self._task_sender = asyncio.create_task(self._sender_loop())
-
-    async def async_stop(self, event: Event | None = None) -> None:
-        """게이트웨이를 중지하고 모든 자원을 해제합니다."""
-        LOGGER.info("Gateway: 서비스를 중지합니다.")
         
-        # 송신 루프 중지
-        if self._task_sender:
-            self._task_sender.cancel()
-            try:
-                await asyncio.wait_for(self._task_sender, timeout=2.0)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                pass
-            self._task_sender = None
+        # 기기 탐색 강제 실행 (연결 후 잠시 대기)
+        asyncio.create_task(self._force_discovery())
 
-        # 수신 루프 중지
-        if self._task_reader:
-            self._task_reader.cancel()
-            try:
-                await asyncio.wait_for(self._task_reader, timeout=2.0)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                pass
-            self._task_reader = None
-
-        # 대기 중인 모든 Future 취소
-        for p in self._pendings:
-            if not p.future.done():
-                p.future.set_exception(asyncio.CancelledError())
-        self._pendings.clear()
-
-        # 연결 종료
-        await self.conn.close()
-
-    def is_idle(self) -> bool:
-        """연결이 유휴 상태인지 확인합니다."""
-        return self.conn.idle_since() >= IDLE_GAP_SEC
-
-    async def async_send_action(self, key: DeviceKey, action: str, **kwargs) -> bool:
-        """디바이스 제어 명령을 전송 큐에 추가합니다.
-
-        Args:
-            key (DeviceKey): 대상 디바이스 키
-            action (str): 수행할 동작
-            **kwargs: 동작 인자
-
-        Returns:
-            bool: 명령 수행 성공 여부
-        """
-        if self._tx_queue.full():
-            LOGGER.warning("Gateway: 송신 큐가 가득 찼습니다 (Backpressure). 명령을 거부합니다: %s", action)
-            return False
-
-        item = _CmdItem(key=key, action=action, kwargs=kwargs)
-        try:
-            await self._tx_queue.put(item)
-            res = await item.future
-            return bool(res)
-        except asyncio.CancelledError:
-            if not item.future.done():
-                item.future.set_result(False)
-            raise
-        except Exception as e:
-            LOGGER.error("Gateway: 명령 실행 중 예외 발생: %s", e)
-            return False
-
-    def on_device_state(self, dev: DeviceState) -> None:
-        """디바이스 상태 변경 이벤트 핸들러."""
+    async def _force_discovery(self) -> None:
+        """시스템 부팅 시 모든 기기 상태를 강제로 조회하여 탐색합니다."""
+        await asyncio.sleep(5)  # 연결 안정화 대기
+        if not self.conn._is_connected():
+            return
+            
+        LOGGER.info("Gateway: 기기 탐색(Discovery)을 시작합니다.")
+        from .models import DeviceKey, SubType
         from .const import DeviceType
-        from homeassistant.helpers.dispatcher import async_dispatcher_send
-
-        allow_insert = True
-        if dev.key.device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
-            allow_insert = bool(getattr(dev, "_is_register", True))
-            if getattr(self, "_force_register_uid", None) == dev.key.unique_id:
-                allow_insert = True
-
-        is_new, changed = self.registry.upsert(dev, allow_insert=allow_insert)
-        if is_new:
-            LOGGER.info("Gateway: 새로운 디바이스 감지됨. 등록 -> %s", dev.key)
-            async_dispatcher_send(
-                self.hass,
-                self.async_signal_new_device(dev.platform),
-                [dev],
-            )
-            self._notify_pendings(dev)
-            return
-
-        if changed:
-            LOGGER.debug("Gateway: 디바이스 상태 변경됨. 업데이트 -> %s", dev.key)
-            async_dispatcher_send(
-                self.hass,
-                self.async_signal_device_updated(dev.key.unique_id),
-                dev,
-            )
-        self._notify_pendings(dev)
-
-    def async_signal_new_device(self, platform: Platform) -> str:
-        """새 디바이스 신호 이름을 생성합니다."""
-        from .const import DOMAIN
-        return f"{DOMAIN}_new_{platform.value}_{self.host}"
-
-    def async_signal_device_updated(self, unique_id: str) -> str:
-        """디바이스 업데이트 신호 이름을 생성합니다."""
-        from .const import DOMAIN
-        return f"{DOMAIN}_updated_{unique_id}"
-
-    def get_devices_from_platform(self, platform: Platform) -> list[DeviceState]:
-        """플랫폼별 디바이스 목록을 가져옵니다."""
-        return self.registry.all_by_platform(platform)
-
-    async def _async_put_entity_dispatch_packet(self, entity_id: str) -> None:
-        """엔티티의 복원된 상태 패킷을 처리합니다."""
-        from homeassistant.helpers import entity_registry as er, restore_state
-        state = restore_state.async_get(self.hass).last_states.get(entity_id)
-        if not (state and state.extra_data):
-            return
-        packet = state.extra_data.as_dict().get("packet")
-        if not packet:
-            return
-        ent_reg = er.async_get(self.hass)
-        ent_entry = ent_reg.async_get(entity_id)
-        if ent_entry and ent_entry.unique_id:
-            self._force_register_uid = ent_entry.unique_id.split(":")[0]
-        LOGGER.debug("Gateway: 상태 복원 -> 패킷: %s", packet)
-        self.controller._dispatch_packet(bytes.fromhex(packet))
-        self._force_register_uid = None
-        device_storage = state.extra_data.as_dict().get("device_storage", {})
-        LOGGER.debug("Gateway: 상태 복원 -> 저장소: %s", device_storage)
-        self.controller._device_storage = device_storage
-
-    async def async_get_entity_registry(self) -> None:
-        """엔티티 레지스트리에서 이전 상태를 복원합니다."""
-        from homeassistant.helpers import entity_registry as er
-        self._restore_mode = True
-        try:
-            entity_registry = er.async_get(self.hass)
-            entities = er.async_entries_for_config_entry(entity_registry, self.entry.entry_id)
-            for entity in entities:
-                await self._async_put_entity_dispatch_packet(entity.entity_id)
-        finally:
-            self._restore_mode = False
-
-    def _notify_pendings(self, dev: DeviceState) -> None:
-        """대기 중인 명령에 상태 업데이트를 알립니다."""
-        if not self._pendings:
-            return
-        hit: list[_PendingWaiter] = []
-        for p in self._pendings:
-            try:
-                if p.key.key == dev.key.key and p.predicate(dev):
-                    hit.append(p)
-            except Exception:
-                continue
-        if hit:
-            for p in hit:
-                if not p.future.done():
-                    p.future.set_result(dev)
-                try:
-                    self._pendings.remove(p)
-                except ValueError:
-                    pass
-
-    async def _wait_for_confirmation(
-        self,
-        key: DeviceKey,
-        predicate: Callable[[DeviceState], bool],
-        timeout: float,
-    ) -> DeviceState:
-        """명령 수행 후 상태 변경을 기다립니다."""
-        loop = asyncio.get_running_loop()
-        waiter = _PendingWaiter(key, predicate, loop)
-        self._pendings.append(waiter)
-        try:
-            return await asyncio.wait_for(waiter.future, timeout=timeout)
-        finally:
-            if waiter in self._pendings:
-                try:
-                    self._pendings.remove(waiter)
-                except ValueError:
-                    pass
+        
+        # 주요 기기 타입들에 대해 룸 0번부터 조회를 날림 (일반적인 구성 기준)
+        # 실제 환경에 맞춰 확장이 필요할 수 있음
+        for dt in [DeviceType.LIGHT, DeviceType.THERMOSTAT, DeviceType.VENTILATION, DeviceType.AIRCONDITIONER]:
+            for room in range(5):  # 룸 0~4번까지 시도
+                key = DeviceKey(device_type=dt, room_index=room, device_index=0, sub_type=SubType.NONE)
+                await self.async_send_action(key, "query")
+                await asyncio.sleep(0.5)  # 버스 부하 방지
+        
+        LOGGER.info("Gateway: 기기 탐색 프로세스 완료.")
 
     async def _read_loop(self) -> None:
         """데이터 수신 루프 (안전 모드 적용)."""
-        LOGGER.info("Gateway: 수신(Read) 루프가 시작되었습니다.")
-        try:
-            while True:
-                try:
-                    # 연결 상태 확인 및 재연결
+        LOGGER.info("Gateway: 수신(Read) 루프 가동.")
+        while True:
+            try:
+                # 연결 상태 확인 및 재연결
+                if not self.conn._is_connected():
+                    await self.conn.reconnect()
                     if not self.conn._is_connected():
-                        LOGGER.debug("Gateway: 연결이 끊겨 있습니다. 재연결 시도...")
-                        await self.conn.reconnect()
+                        await asyncio.sleep(5)
                         continue
-                    
-                    # 수신 대기 (블로킹 방지)
-                    chunk = await self.conn.recv(512, RECV_POLL_SEC)
-                    if chunk:
-                        self._last_rx_monotonic = asyncio.get_running_loop().time()
-                        self.controller.feed(chunk)
-                    else:
-                        # 데이터가 없거나 EOF 발생 시 (recv에서 _connected=False 처리됨)
-                        # 아주 짧게 대기하여 CPU 과점유 방지
-                        await asyncio.sleep(0.01)
+                
+                # 수신 대기
+                chunk = await self.conn.recv(512, RECV_POLL_SEC)
+                if chunk:
+                    self._last_rx_monotonic = asyncio.get_running_loop().time()
+                    self.controller.feed(chunk)
+                else:
+                    await asyncio.sleep(0.01)
 
-                except asyncio.CancelledError:
-                    raise
-                except Exception as e:
-                    LOGGER.exception("Gateway: 수신 루프 중 치명적 오류 발생: %s", e)
-                    await asyncio.sleep(1)
-
-        except asyncio.CancelledError:
-            LOGGER.info("Gateway: 수신 루프가 정상적으로 종료되었습니다.")
-            raise
+            except asyncio.CancelledError:
+                LOGGER.info("Gateway: 수신 루프 종료.")
+                break
+            except Exception as e:
+                LOGGER.exception("Gateway: 수신 루프 예외 발생: %s", e)
+                await asyncio.sleep(1)
 
     async def _sender_loop(self) -> None:
         """송신 큐 처리 루프 (안전 모드 적용)."""
