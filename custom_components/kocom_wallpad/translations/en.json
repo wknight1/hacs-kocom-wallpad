@@ -1,0 +1,106 @@
+{
+    "title": "Kocom Wallpad",
+    "config": {
+        "step": {
+            "user": {
+                "description": "Enter the device's address and port.",
+                "data": {
+                    "host": "Host",
+                    "port": "Port"
+                },
+                "data_description": {
+                    "host": "If it is serial communication, enter Host and ignore Port."
+                }
+            }
+        },
+        "abort": {
+            "single_instance_allowed": "Only a single configuration is allowed."
+        },
+        "error": {
+            "cannot_connect": "Failed to connect."
+        }
+    },
+    "entity": {
+        "light": {
+            "light": {
+                "name": "Light {id}"
+            },
+            "dimminglight": {
+                "name": "Dimming Light {id}"
+            },
+            "lightcutoff": {
+                "name": "Light Cut-off {id}"
+            }
+        },
+        "switch": {
+            "outlet": {
+                "name": "Outlet {id}"
+            },
+            "gasvalve": {
+                "name": "Gas Valve {id}"
+            },
+            "elevator": {
+                "name": "Elevator {id}"
+            }
+        },
+        "climate": {
+            "thermostat": {
+                "name": "Thermostat {id}"
+            },
+            "airconditioner": {
+                "name": "Air Conditioner {id}"
+            }
+        },
+        "fan": {
+            "ventilation": {
+                "name": "Ventilation {id}"
+            }
+        },
+        "sensor": {
+            "elevator-direction": {
+                "name": "Elevator Direction {id}"
+            },
+            "elevator-floor": {
+                "name": "Elevator Floor {id}"
+            },
+            "airquality-co2": {
+                "name": "Air Quality CO2 {id}"
+            },
+            "airquality-voc": {
+                "name": "Air Quality VOC {id}"
+            },
+            "airquality-pm25": {
+                "name": "Air Quality PM2.5 {id}"
+            },
+            "airquality-pm10": {
+                "name": "Air Quality PM10 {id}"
+            },
+            "airquality-humidity": {
+                "name": "Air Quality Humidity {id}"
+            },
+            "airquality-temp": {
+                "name": "Air Quality Temperature {id}"
+            },
+            "thermostat-heattemp": {
+                "name": "Boiler Heat Water Temperature {id}"
+            },
+            "thermostat-hottemp": {
+                "name": "Boiler Hot Water Temperature {id}"
+            },
+            "ventilation-co2": {
+                "name": "Ventilation CO2 {id}"
+            }
+        },
+        "binary_sensor": {
+            "motion": {
+                "name": "Motion Sensor(door) {id}"
+            },
+            "thermostat-errcode": {
+                "name": "Boiler Error Code {id}"
+            },
+            "ventilation-errcode": {
+                "name": "Ventilation Error Code {id}"
+            }
+        }
+    }
+}

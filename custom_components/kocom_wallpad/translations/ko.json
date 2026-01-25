@@ -1,0 +1,106 @@
+{
+    "title": "코콤 월패드",
+    "config": {
+        "step": {
+            "user": {
+                "description": "장치의 주소와 포트를 입력하세요.",
+                "data": {
+                    "host": "호스트",
+                    "port": "포트"
+                },
+                "data_description": {
+                    "host": "시리얼 통신인 경우 호스트에 입력하고 포트는 무시하세요."
+                }
+            }
+        },
+        "abort": {
+            "single_instance_allowed": "단일 구성만 허용됩니다."
+        },
+        "error": {
+            "cannot_connect": "연결할 수 없습니다."
+        }
+    },
+    "entity": {
+        "light": {
+            "light": {
+                "name": "조명 {id}"
+            },
+            "dimminglight": {
+                "name": "디밍 조명 {id}"
+            },
+            "lightcutoff": {
+                "name": "일괄소등 {id}"
+            }
+        },
+        "switch": {
+            "outlet": {
+                "name": "콘센트 {id}"
+            },
+            "gasvalve": {
+                "name": "가스밸브 {id}"
+            },
+            "elevator": {
+                "name": "엘리베이터 {id}"
+            }
+        },
+        "climate": {
+            "thermostat": {
+                "name": "난방 {id}"
+            },
+            "airconditioner": {
+                "name": "에어컨 {id}"
+            }
+        },
+        "fan": {
+            "ventilation": {
+                "name": "환기 {id}"
+            }
+        },
+        "sensor": {
+            "elevator-direction": {
+                "name": "엘리베이터 방향 {id}"
+            },
+            "elevator-floor": {
+                "name":"엘리베이터 층수 {id}"
+            },
+            "airquality-co2": {
+                "name": "공기질 CO2 {id}"
+            },
+            "airquality-voc": {
+                "name": "공기질 VOC {id}"
+            },
+            "airquality-pm25": {
+                "name": "공기질 PM2.5 {id}"
+            },
+            "airquality-pm10": {
+                "name": "공기질 PM10 {id}"
+            },
+            "airquality-humidity": {
+                "name": "공기질 습도 {id}"
+            },
+            "airquality-temp": {
+                "name": "공기질 온도 {id}"
+            },
+            "thermostat-heattemp": {
+                "name": "보일러 난방수 온도 {id}"
+            },
+            "thermostat-hottemp": {
+                "name": "보일러 온수 온도 {id}"
+            },
+            "ventilation-co2": {
+                "name": "환기 CO2 {id}"
+            }
+        },
+        "binary_sensor": {
+            "motion": {
+                "name": "움직임 감지기(현관) {id}"
+            },
+            "thermostat-errcode": {
+                "name": "보일러 오류코드 {id}"
+            },
+            "ventilation-errcode": {
+                "name": "환기 오류코드 {id}"
+            }
+        }
+    }
+}
