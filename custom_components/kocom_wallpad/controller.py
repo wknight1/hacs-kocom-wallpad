@@ -93,7 +93,8 @@ class PacketFrame:
         elif self.src[0] == 0x01:
             return (self.dest[0], self.dest[1])
         else:
-            LOGGER.warning("Peer resolution failed: dest=%s, src=%s", self.dest.hex(), self.src.hex())
+            # 월패드(0x01)와 무관한 장치 간 통신(예: 서브폰 등)은 무시
+            LOGGER.debug("Controller: 무관한 패킷 무시 (dest=%s, src=%s)", self.dest.hex(), self.src.hex())
             return (0, 0)
 
     @property

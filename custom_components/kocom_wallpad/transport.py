@@ -107,8 +107,8 @@ class AsyncConnection:
             chunk = await asyncio.wait_for(self._reader.read(nbytes), timeout=timeout)
             
             if chunk == b"":
-                # EOF 발생 시 즉시 자원 정리 및 상태 변경
-                LOGGER.warning("Transport: 연결 종료 감지 (EOF) - %s", self.host)
+                # EOF 감지 시 즉시 자원 정리 및 상태 변경
+                LOGGER.debug("Transport: 원격 호스트에서 세션 종료 (EOF) - %s", self.host)
                 await self.close()
                 return b""
                 
