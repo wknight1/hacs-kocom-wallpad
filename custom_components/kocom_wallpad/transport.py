@@ -25,10 +25,14 @@ class AsyncConnection:
         self._writer: Optional[asyncio.StreamWriter] = None
         self._last_activity_mono: float = time.monotonic()
         self._last_reconn_delay: float = 0.0
-        self._connected = True
+        self._connected = False  # 초기 상태는 False
+        self._reconnect_lock = asyncio.Lock()  # 재연결 원자성 보장용 락
 
     async def open(self) -> None:
         """연결을 수립합니다 (TCP 또는 Serial)."""
+        if self._is_connected():
+            return
+
         LOGGER.debug("Transport: 연결 시도 중... (Host: %s, Port: %s)", self.host, self.port)
         try:
             if self.port is None:
@@ -48,13 +52,17 @@ class AsyncConnection:
             self._touch()
         except asyncio.TimeoutError:
             LOGGER.error("Transport: 연결 타임아웃 발생 (%s초)", self.connect_timeout)
-            await self.reconnect()
+            # open 실패 시 reconnect를 직접 호출하지 않고 에러만 던짐 (호출 측에서 처리)
+            self._connected = False
+            raise
         except Exception as e:
             LOGGER.exception("Transport: 연결 중 오류 발생: %r", e)
-            await self.reconnect()
+            self._connected = False
+            raise
 
     async def close(self) -> None:
         """연결을 종료합니다."""
+        self._connected = False
         if self._writer is not None:
             LOGGER.debug("Transport: 연결 종료 시작")
             try:
@@ -65,7 +73,6 @@ class AsyncConnection:
             finally:
                 self._writer = None
         self._reader = None
-        self._connected = False
         LOGGER.info("Transport: 연결이 완전히 종료되었습니다.")
 
     def _is_connected(self) -> bool:
@@ -83,18 +90,17 @@ class AsyncConnection:
     async def send(self, data: bytes) -> int:
         """데이터를 전송합니다."""
         if not self._is_connected():
-            LOGGER.debug("Transport: 전송 시도 중 연결 끊김 발견 -> 재연결")
-            await self.reconnect()
+            LOGGER.debug("Transport: 연결 끊김 상태에서 전송 시도 -> 재연결 트리거")
+            asyncio.create_task(self.reconnect())
             return 0
         try:
-            # LOGGER.debug("Transport: 전송 -> %s", data.hex())
             self._writer.write(data)
             await asyncio.wait_for(self._writer.drain(), timeout=2.0)
             self._touch()
             return len(data)
         except Exception as e:
             LOGGER.warning("Transport: 전송 실패: %r", e)
-            await self.reconnect()
+            asyncio.create_task(self.reconnect())
             return 0
 
     async def recv(self, nbytes: int, timeout: float = 0.05) -> bytes:
@@ -108,7 +114,7 @@ class AsyncConnection:
             if chunk == b"":
                 # EOF(End of File)은 소켓 연결이 끊어졌음을 의미
                 LOGGER.warning("Transport: 원격 호스트에서 연결 종료 감지 (EOF)")
-                await self.reconnect()
+                asyncio.create_task(self.reconnect())
                 return b""
                 
             self._touch()
@@ -118,27 +124,35 @@ class AsyncConnection:
             return b""
         except Exception as e:
             LOGGER.warning("Transport: 수신 오류 발생: %r", e)
-            await self.reconnect()
+            asyncio.create_task(self.reconnect())
             return b""
 
     async def reconnect(self) -> None:
-        """연결을 재수립합니다 (지수 백오프 적용)."""
-        if not self._connected and self._writer is None:
-            # 이미 재연결 루틴이 진행 중임
+        """연결을 재수립합니다 (원자성 및 지수 백오프 보장)."""
+        if self._reconnect_lock.locked():
+            LOGGER.debug("Transport: 이미 재연결이 진행 중입니다. 대기 중인 요청을 무시합니다.")
             return
 
-        self._connected = False
-        delay_min, delay_max = self.reconnect_backoff
-        delay = self._last_reconn_delay if self._last_reconn_delay > 0.0 else delay_min
+        async with self._reconnect_lock:
+            if self._is_connected():
+                return
 
-        await self.close()
-        
-        LOGGER.info("Transport: %.1f초 후 재연결을 시도합니다. (백오프 진행 중)", delay)
-        await asyncio.sleep(delay)
-        
-        self._last_reconn_delay = min(delay * 2, delay_max)
-        await self.open()
+            self._connected = False
+            delay_min, delay_max = self.reconnect_backoff
+            delay = self._last_reconn_delay if self._last_reconn_delay > 0.0 else delay_min
 
-        if self._is_connected():
-            LOGGER.info("Transport: 재연결에 성공했습니다.")
-            self._last_reconn_delay = delay_min
+            await self.close()
+            
+            LOGGER.info("Transport: %.1f초 후 재연결을 시도합니다. (백오프 진행 중)", delay)
+            await asyncio.sleep(delay)
+            
+            self._last_reconn_delay = min(delay * 2, delay_max)
+            
+            try:
+                await self.open()
+                if self._is_connected():
+                    LOGGER.info("Transport: 재연결에 성공했습니다.")
+                    self._last_reconn_delay = delay_min
+            except Exception:
+                # open 자체의 에러는 이미 로그에 찍힘
+                pass
