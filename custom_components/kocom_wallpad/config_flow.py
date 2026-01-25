@@ -8,7 +8,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PORT
 
-from .const import DOMAIN, DEFAULT_TCP_PORT
+from .const import DOMAIN, DEFAULT_TCP_PORT, LOGGER
 
 
 class KocomConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -25,14 +25,18 @@ class KocomConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host: str = user_input[CONF_HOST]
             port: int = user_input[CONF_PORT]
+            
+            LOGGER.debug("ConfigFlow: 사용자 입력 수신 - Host: %s, Port: %s", host, port)
 
             # 시리얼의 경우 host가 "/"로 시작하면 장치 경로로 간주하고 port 무시
             if host.startswith("/"):
                 port = None
+                LOGGER.debug("ConfigFlow: 시리얼 장치 모드로 진입")
 
             await self.async_set_unique_id(host)
             self._abort_if_unique_id_configured()
 
+            LOGGER.info("ConfigFlow: 새로운 설정 생성 완료 (Host: %s)", host)
             return self.async_create_entry(
                 title=host,
                 data={CONF_HOST: host, CONF_PORT: port}

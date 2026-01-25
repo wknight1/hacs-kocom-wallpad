@@ -283,47 +283,50 @@ class KocomController:
 
     def _dispatch_packet(self, packet: bytes) -> None:
         """패킷을 분석하여 해당 디바이스 핸들러로 라우팅합니다."""
-        frame = PacketFrame(packet)
-        if self._checksum(packet[2:18]) != frame.checksum:
-            LOGGER.debug("Packet checksum is invalid. raw=%s", frame.raw.hex())
-            return
+        try:
+            frame = PacketFrame(packet)
+            if self._checksum(packet[2:18]) != frame.checksum:
+                LOGGER.debug("Controller: 체크섬 오류 (무시됨). raw=%s", packet.hex())
+                return
 
-        dev_state = None
-        if frame.dev_type == DeviceType.LIGHT:
-            if frame.dev_room == 0xFF:
-                dev_state = self._handle_cutoff_switch(frame)
-            else:
+            dev_state = None
+            if frame.dev_type == DeviceType.LIGHT:
+                if frame.dev_room == 0xFF:
+                    dev_state = self._handle_cutoff_switch(frame)
+                else:
+                    dev_state = self._handle_switch(frame)
+            elif frame.dev_type == DeviceType.OUTLET:
                 dev_state = self._handle_switch(frame)
-        elif frame.dev_type == DeviceType.OUTLET:
-            dev_state = self._handle_switch(frame)
-        elif frame.dev_type == DeviceType.THERMOSTAT:
-            dev_state = self._handle_thermostat(frame)
-        elif frame.dev_type == DeviceType.AIRCONDITIONER:
-            dev_state = self._handle_airconditioner(frame)
-        elif frame.dev_type == DeviceType.VENTILATION:
-            dev_state = self._handle_ventilation(frame)
-        elif frame.dev_type == DeviceType.GASVALVE:
-            dev_state = self._handle_gasvalve(frame)
-        elif frame.dev_type == DeviceType.ELEVATOR:
-            dev_state = self._handle_elevator(frame)
-        elif frame.dev_type == DeviceType.MOTION:
-            dev_state = self._handle_motion(frame)
-        elif frame.dev_type == DeviceType.AIRQUALITY:
-            dev_state = self._handle_airquality(frame)
-        else:
-            LOGGER.debug("Unhandled device type: %s (raw=%s)", frame.dev_type.name, frame.raw.hex())
-            return
+            elif frame.dev_type == DeviceType.THERMOSTAT:
+                dev_state = self._handle_thermostat(frame)
+            elif frame.dev_type == DeviceType.AIRCONDITIONER:
+                dev_state = self._handle_airconditioner(frame)
+            elif frame.dev_type == DeviceType.VENTILATION:
+                dev_state = self._handle_ventilation(frame)
+            elif frame.dev_type == DeviceType.GASVALVE:
+                dev_state = self._handle_gasvalve(frame)
+            elif frame.dev_type == DeviceType.ELEVATOR:
+                dev_state = self._handle_elevator(frame)
+            elif frame.dev_type == DeviceType.MOTION:
+                dev_state = self._handle_motion(frame)
+            elif frame.dev_type == DeviceType.AIRQUALITY:
+                dev_state = self._handle_airquality(frame)
+            else:
+                LOGGER.debug("Controller: 미지원 디바이스 타입: %s (raw=%s)", frame.dev_type.name, packet.hex())
+                return
 
-        if not dev_state:
-            return
+            if not dev_state:
+                return
 
-        if isinstance(dev_state, list):
-            for state in dev_state:
-                state._packet = packet
-                self.gateway.on_device_state(state)
-        else:
-            dev_state._packet = packet
-            self.gateway.on_device_state(dev_state)
+            if isinstance(dev_state, list):
+                for state in dev_state:
+                    state._packet = packet
+                    self.gateway.on_device_state(state)
+            else:
+                dev_state._packet = packet
+                self.gateway.on_device_state(dev_state)
+        except Exception as e:
+            LOGGER.error("Controller: 패킷 처리 중 예외 발생: %s (Packet: %s)", e, packet.hex())
             
     def _handle_cutoff_switch(self, frame: PacketFrame) -> DeviceState:
         """일괄 소등 스위치 상태를 처리합니다."""
