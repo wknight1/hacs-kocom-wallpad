@@ -1,7 +1,7 @@
 # Kocom Wallpad Integration (RS485)
 
 [![HACS Badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![Version](https://img.shields.io/github/v/release/wknight1/kocom-wallpad)](https://github.com/wknight1/kocom-wallpad/releases)
+[![Version](https://img.shields.io/github/v/release/wknight1/hacs-kocom-wallpad)](https://github.com/wknight1/hacs-kocom-wallpad/releases)
 [![Maintainer](https://img.shields.io/badge/maintainer-wknight1-blue)](https://github.com/wknight1)
 
 코콤(Kocom) 월패드의 RS485 프로토콜을 분석하여 Home Assistant에 통합하는 커스텀 컴포넌트입니다.
