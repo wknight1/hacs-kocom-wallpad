@@ -89,9 +89,10 @@ classDiagram
 | **Parity** | `None` | No parity |
 | **Stop Bits** | `1` | 1 stop bit |
 | **Flow Control** | `None` | 흐름 제어 없음 |
-| **Protocol** | `TCP Server` | HA가 접속할 수 있도록 서버 모드 |
-| **Buffer Size** | `1024` | 패킷 단편화 방지 |
-| **Gap Time** | `50ms` | 패킷 간 최소 간격 |
+| **Buffer Size** | `512` | 패킷 처리 최적화 값 |
+| **Gap Time** | `50ms` | 패킷 종료 감지 지연 시간 |
+| **Keep Alive** | `10s` | TCP 연결 유지 간격 |
+| **Timeout** | `30s` | 소켓 자동 종료 타임아웃 |
 
 ### 2. HACS Installation
 1.  Home Assistant의 **HACS > Integrations** 메뉴로 이동합니다.

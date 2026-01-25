@@ -136,6 +136,7 @@ class KocomGateway:
         self._tx_queue: asyncio.Queue[_CmdItem] = asyncio.Queue(maxsize=50)  # 최대 큐 크기 제한
         self._task_reader: asyncio.Task | None = None
         self._task_sender: asyncio.Task | None = None
+        self._task_heartbeat: asyncio.Task | None = None
         self._pendings: list[_PendingWaiter] = []
         self._last_rx_monotonic: float = 0.0
         self._last_tx_monotonic: float = 0.0
@@ -176,9 +177,41 @@ class KocomGateway:
         self._last_tx_monotonic = self.conn.idle_since()
         self._task_reader = asyncio.create_task(self._read_loop())
         self._task_sender = asyncio.create_task(self._sender_loop())
+        self._task_heartbeat = asyncio.create_task(self._heartbeat_loop())
         
         # 기기 탐색 강제 실행
         asyncio.create_task(self._force_discovery())
+
+    async def _heartbeat_loop(self) -> None:
+        """EW11 소켓 타임아웃(30s) 방지를 위한 Keep-Alive 쿼리 루프."""
+        while True:
+            try:
+                await asyncio.sleep(25)  # 25초마다 활동 체크
+                if not self.conn._is_connected():
+                    continue
+                
+                # 마지막 활동(송신/수신) 이후 20초가 지났으면 하트비트 전송
+                idle_time = min(
+                    asyncio.get_running_loop().time() - self._last_rx_monotonic,
+                    asyncio.get_running_loop().time() - self._last_tx_monotonic
+                )
+                
+                if idle_time > 20:
+                    LOGGER.debug("Gateway: 유휴 상태 감지 (%.1fs). 소켓 유지를 위해 하트비트 송신.", idle_time)
+                    from .models import DeviceKey, SubType
+                    from .const import DeviceType
+                    # 무해한 거실 조명 상태 조회 패킷 송신
+                    key = DeviceKey(DeviceType.LIGHT, 0, 0, SubType.NONE)
+                    # 직접 큐에 넣지 않고 비동기로 쿼리 날림 (응답 확인 안함)
+                    try:
+                        packet, _, _ = self.controller.generate_command(key, "query")
+                        await self.conn.send(packet)
+                    except Exception:
+                        pass
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                LOGGER.debug("Gateway: 하트비트 루프 예외 (무시됨): %s", e)
 
     async def _force_discovery(self) -> None:
         """시스템 부팅 시 모든 기기 상태를 강제로 조회하여 탐색합니다."""
@@ -306,6 +339,15 @@ class KocomGateway:
     async def async_stop(self, event: Event | None = None) -> None:
         """게이트웨이를 중지하고 모든 자원을 해제합니다."""
         LOGGER.info("Gateway: 서비스를 중지합니다.")
+        
+        if self._task_heartbeat:
+            self._task_heartbeat.cancel()
+            try:
+                await asyncio.wait_for(self._task_heartbeat, timeout=1.0)
+            except Exception:
+                pass
+            self._task_heartbeat = None
+
         if self._task_sender:
             self._task_sender.cancel()
             try:

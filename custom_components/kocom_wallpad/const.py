@@ -23,11 +23,11 @@ PACKET_SUFFIX = bytes([0x0D, 0x0D])
 PACKET_LEN = 21
 
 DEFAULT_TCP_PORT = 8899
-RECV_POLL_SEC = 0.05  # 50ms polling
-IDLE_GAP_SEC = 0.20   # 보내기 전 라인 유휴로 보고 싶은 최소 간격
+RECV_POLL_SEC = 0.03  # 30ms polling (EW11 Gap Time 50ms 고려)
+IDLE_GAP_SEC = 0.10   # 보내기 전 라인 유휴로 보고 싶은 최소 간격 (100ms로 단축)
 SEND_RETRY_MAX = 3
-SEND_RETRY_GAP = 0.15
-CMD_CONFIRM_TIMEOUT = 1.0  # 보낸 뒤 상태 확인을 기다리는 최대 시간
+SEND_RETRY_GAP = 0.20 # 재시도 간격을 약간 넓혀 하드웨어 버퍼 정리 유도
+CMD_CONFIRM_TIMEOUT = 1.2  # 고지연 환경 대비 타임아웃 약간 상향
 
 class DeviceType(IntEnum):
     """디바이스 타입 정의."""

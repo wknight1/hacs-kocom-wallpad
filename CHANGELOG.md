@@ -1,5 +1,12 @@
 # Changelog
 
+## [v2.1.9] - 2026-01-25
+### Added
+- **Keep-Alive Heartbeat:** EW11 소켓 타임아웃(30s) 방지를 위한 자동 유휴 쿼리 로직 도입.
+### Changed
+- **Timing Optimization:** EW11 하드웨어 설정(Gap Time 50ms)에 맞춰 `IDLE_GAP_SEC` 및 `RECV_POLL_SEC` 최적화.
+- **Improved Response Time:** RS485 버스 유휴 감지 시간을 단축하여 제어 반응 속도 개선.
+
 ## [v2.1.8] - 2026-01-25
 ### Changed
 - **Log Level Optimization:** `Peer resolution failed` 및 `EOF` 로그를 `WARNING`에서 `DEBUG`로 하향 조정하여 로그 스팸 방지.
