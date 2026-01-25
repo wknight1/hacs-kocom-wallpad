@@ -336,28 +336,27 @@ class KocomGateway:
         try:
             while True:
                 try:
-                    # 연결 상태 확인
+                    # 연결 상태 확인 및 재연결
                     if not self.conn._is_connected():
-                        LOGGER.debug("Gateway: 연결이 끊겨 있습니다. 1초 대기...")
-                        await asyncio.sleep(1)
+                        LOGGER.debug("Gateway: 연결이 끊겨 있습니다. 재연결 시도...")
+                        await self.conn.reconnect()
                         continue
                     
                     # 수신 대기 (블로킹 방지)
                     chunk = await self.conn.recv(512, RECV_POLL_SEC)
                     if chunk:
-                        # 데이터 수신 로그 (너무 많으면 주석 처리 가능)
-                        # LOGGER.debug("Gateway: 데이터 수신 (%d bytes)", len(chunk))
                         self._last_rx_monotonic = asyncio.get_running_loop().time()
                         self.controller.feed(chunk)
                     else:
-                        # CPU 과점유 방지용 최소 대기
+                        # 데이터가 없거나 EOF 발생 시 (recv에서 _connected=False 처리됨)
+                        # 아주 짧게 대기하여 CPU 과점유 방지
                         await asyncio.sleep(0.01)
 
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:
-                    LOGGER.exception("Gateway: 수신 루프 중 치명적 오류 발생 (자동 복구 시도): %s", e)
-                    await asyncio.sleep(1)  # 오류 발생 시 급발진 방지 대기
+                    LOGGER.exception("Gateway: 수신 루프 중 치명적 오류 발생: %s", e)
+                    await asyncio.sleep(1)
 
         except asyncio.CancelledError:
             LOGGER.info("Gateway: 수신 루프가 정상적으로 종료되었습니다.")

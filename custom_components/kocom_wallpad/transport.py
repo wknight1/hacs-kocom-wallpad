@@ -36,9 +36,9 @@ class AsyncConnection:
         LOGGER.debug("Transport: 연결 시도 중... (Host: %s, Port: %s)", self.host, self.port)
         try:
             if self.port is None:
-                # Lazy import to prevent blocking issues on startup
-                import serial_asyncio
-                self._reader, self._writer = await serial_asyncio.open_serial_connection(
+                # 성능 개선된 fast 라이브러리 사용
+                import serial_asyncio_fast
+                self._reader, self._writer = await serial_asyncio_fast.open_serial_connection(
                     url=self.host, baudrate=self.serial_baud
                 )
                 LOGGER.info("Transport: 시리얼 연결 성공: %s", self.host)
@@ -90,8 +90,6 @@ class AsyncConnection:
     async def send(self, data: bytes) -> int:
         """데이터를 전송합니다."""
         if not self._is_connected():
-            LOGGER.debug("Transport: 연결 끊김 상태에서 전송 시도 -> 재연결 트리거")
-            asyncio.create_task(self.reconnect())
             return 0
         try:
             self._writer.write(data)
@@ -99,22 +97,23 @@ class AsyncConnection:
             self._touch()
             return len(data)
         except Exception as e:
-            LOGGER.warning("Transport: 전송 실패: %r", e)
-            asyncio.create_task(self.reconnect())
+            LOGGER.warning("Transport: 전송 실패 (연결 끊김 간주): %r", e)
+            self._connected = False
             return 0
 
     async def recv(self, nbytes: int, timeout: float = 0.05) -> bytes:
         """데이터를 수신합니다."""
-        if not self._reader:
+        if not self._reader or not self._connected:
             return b""
         
         try:
             chunk = await asyncio.wait_for(self._reader.read(nbytes), timeout=timeout)
             
             if chunk == b"":
-                # EOF(End of File)은 소켓 연결이 끊어졌음을 의미
-                LOGGER.warning("Transport: 원격 호스트에서 연결 종료 감지 (EOF)")
-                asyncio.create_task(self.reconnect())
+                # EOF 감지 시 즉시 상태 변경하여 루프 폭주 방지
+                if self._connected:
+                    LOGGER.warning("Transport: 원격 호스트에서 연결 종료 감지 (EOF)")
+                    self._connected = False
                 return b""
                 
             self._touch()
@@ -123,8 +122,9 @@ class AsyncConnection:
         except asyncio.TimeoutError:
             return b""
         except Exception as e:
-            LOGGER.warning("Transport: 수신 오류 발생: %r", e)
-            asyncio.create_task(self.reconnect())
+            if self._connected:
+                LOGGER.warning("Transport: 수신 오류 발생 (연결 끊김 간주): %r", e)
+                self._connected = False
             return b""
 
     async def reconnect(self) -> None:
