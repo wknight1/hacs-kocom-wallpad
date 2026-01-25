@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Tuple
 import asyncio
-import serial_asyncio_fast
+import serial_asyncio
 import time
 
 from .const import LOGGER
@@ -32,7 +32,7 @@ class AsyncConnection:
         """연결을 수립합니다 (TCP 또는 Serial)."""
         try:
             if self.port is None:
-                self._reader, self._writer = await serial_asyncio_fast.open_serial_connection(
+                self._reader, self._writer = await serial_asyncio.open_serial_connection(
                     url=self.host, baudrate=self.serial_baud
                 )
                 LOGGER.info("시리얼 연결 성공: %s", self.host)
