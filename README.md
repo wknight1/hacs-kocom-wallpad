@@ -11,9 +11,9 @@ EW11과 같은 RS485-WiFi/Ethernet 게이트웨이를 통해 통신하며, 높�
 
 *   **Zero-Copy RingBuffer:** 고성능 원형 버퍼(Ring Buffer)를 도입하여 패킷 파싱 시 메모리 재할당을 최소화하고 CPU 점유율을 낮췄습니다.
 *   **Smart Polling & Sync:** 제어 명령 송신 직후 상태 조회를 수행하는 '즉시 동기화(Immediate Sync)' 알고리즘으로 명령 유실을 방지합니다.
+*   **Resilient Self-Healing:** 공유기 재부팅 등 네트워크 장애 발생 시 지수 백오프로 재연결을 시도하며, 복구 직후 모든 기기 상태를 자동으로 재탐색합니다.
+*   **Health Monitoring:** 월패드 응답을 실시간 감시하여 전원 장애 시 엔티티를 자동으로 '사용 불가능(Unavailable)'으로 전환하여 상태 오보를 방지합니다.
 *   **Atomic Self-Healing:** `asyncio.Lock`을 기반으로 한 원자적 재연결 로직으로 중복 연결 시도를 방지하고 안정적으로 통신을 복구합니다.
-*   **Backpressure Control:** 송신 큐 크기 제한 및 스로틀링을 통해 하드웨어 지연 상황에서도 Home Assistant 메인 서비스의 자원을 보호합니다.
-*   **다양한 기기 지원:** 조명, 난방, 가스, 환기, 에어컨, 엘리베이터, 대기전력 차단 스위치 등.
 
 ---
 

@@ -24,6 +24,7 @@ class AsyncConnection:
         self._reader: Optional[asyncio.StreamReader] = None
         self._writer: Optional[asyncio.StreamWriter] = None
         self._last_activity_mono: float = time.monotonic()
+        self._last_recv_mono: float = time.monotonic()
         self._last_reconn_delay: float = 0.0
         self._connected = False
         self._reconnect_lock = asyncio.Lock()
@@ -53,6 +54,7 @@ class AsyncConnection:
                 LOGGER.info("Transport: 소켓 연결 성공: %s:%s", self.host, self.port)
             self._connected = True
             self._touch()
+            self._touch_recv()
         except Exception as e:
             LOGGER.error("Transport: 연결 실패 (%s): %r", self.host, e)
             await self.close()
@@ -80,9 +82,17 @@ class AsyncConnection:
         """활동 시간을 업데이트합니다."""
         self._last_activity_mono = time.monotonic()
 
+    def _touch_recv(self) -> None:
+        """수신 시간을 업데이트합니다."""
+        self._last_recv_mono = time.monotonic()
+
     def idle_since(self) -> float:
         """마지막 활동 이후 시간(초)을 반환합니다."""
         return max(0.0, time.monotonic() - self._last_activity_mono)
+
+    def recv_idle_since(self) -> float:
+        """마지막 유효 패킷 수신 이후 시간(초)을 반환합니다."""
+        return max(0.0, time.monotonic() - self._last_recv_mono)
 
     async def send(self, data: bytes) -> int:
         """데이터를 전송합니다."""
@@ -113,6 +123,7 @@ class AsyncConnection:
                 return b""
                 
             self._touch()
+            self._touch_recv()
             return chunk
             
         except asyncio.TimeoutError:

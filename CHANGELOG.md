@@ -1,5 +1,11 @@
 # Changelog
 
+## [v2.2.0] - 2026-01-25
+### Added
+- **Network Resilience:** 공유기 재부팅 등 네트워크 단절 시 자동 복구 및 복구 직후 즉시 재검색(Auto-Discovery) 수행.
+- **Availability Monitoring:** 월패드 무반응(전원 꺼짐 등) 감지 시 엔티티를 자동으로 '사용 불가능(Unavailable)' 상태로 전환.
+- **Heartbeat Enhancement:** 마지막 활동뿐만 아니라 실제 수신 시간을 추적하여 통신 신뢰성 강화.
+
 ## [v2.1.9] - 2026-01-25
 ### Added
 - **Keep-Alive Heartbeat:** EW11 소켓 타임아웃(30s) 방지를 위한 자동 유휴 쿼리 로직 도입.

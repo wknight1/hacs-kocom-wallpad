@@ -108,6 +108,11 @@ class KocomBaseEntity(RestoreEntity):
         self.async_write_ha_state()
 
     @property
+    def available(self) -> bool:
+        """게이트웨이 연결 및 월패드 응답 상태에 따른 가용성을 반환합니다."""
+        return self.gateway.is_available()
+
+    @property
     def extra_restore_state_data(self) -> RestoredExtraData:
         """복원 시 필요한 추가 데이터를 저장합니다."""
         return RestoredExtraData({
