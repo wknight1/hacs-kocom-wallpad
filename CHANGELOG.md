@@ -1,5 +1,12 @@
 # Changelog
 
+## [v2.2.1] - 2026-01-26
+### Fixed
+- **AC Beep & Light Auto-Off Fix:** 하트비트 쿼리 대상을 '조명'에서 '가스밸브(상태 조회)'로 변경하여, 주기적인 비프음 발생 및 특정 조명이 자동으로 꺼지는 문제 해결.
+- **Light Control Safety:** 조명 상태 조회(Query) 시, 레지스트리에 상태가 없는 경우 무조건 끄는(OFF) 문제를 방지하기 위해 섀도우 상태(Shadow State) 참조 로직 추가.
+### Optimized
+- **AC Packet Logic:** 에어컨 제어 시 변경하지 않는 값(팬 모드, 온도 등)이 0으로 초기화되지 않도록, 현재 상태를 보존하여 패킷을 생성하는 로직 개선.
+
 ## [v2.2.0] - 2026-01-25
 ### Added
 - **Network Resilience:** 공유기 재부팅 등 네트워크 단절 시 자동 복구 및 복구 직후 즉시 재검색(Auto-Discovery) 수행.

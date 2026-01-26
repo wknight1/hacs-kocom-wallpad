@@ -212,7 +212,12 @@ class KocomGateway:
                     LOGGER.debug("Gateway: 유휴 상태 감지 (%.1fs). 하트비트 송신.", idle_time)
                     from .models import DeviceKey, SubType
                     from .const import DeviceType
-                    key = DeviceKey(DeviceType.LIGHT, 0, 0, SubType.NONE)
+                    # 하트비트를 조명(LIGHT)에서 가스밸브(GASVALVE) 쿼리로 변경
+                    # 이유: 
+                    # 1. 조명 쿼리(0x00)가 제어 명령으로 인식되어 월패드/에어컨 비프음 유발 가능성
+                    # 2. 조명 쿼리 시 상태 미상인 조명이 꺼지는(0x00) 사이드 이펙트 방지
+                    # 3. 가스밸브 쿼리는 0x02 커맨드를 사용하여 비교적 안전한 상태 조회임
+                    key = DeviceKey(DeviceType.GASVALVE, 0, 0, SubType.NONE)
                     try:
                         packet, _, _ = self.controller.generate_command(key, "query")
                         await self.conn.send(packet)

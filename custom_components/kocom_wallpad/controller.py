@@ -833,7 +833,7 @@ class KocomController:
     def _generate_switch(self, key: DeviceKey, action: str, data: bytes) -> bytes:
         for idx in range(8):
             new_key = replace(key, device_index=idx)
-            st = self.gateway.registry.get(new_key)
+            st = self.gateway.registry.get(new_key, include_shadow=True)
             if idx != key.device_index:
                 bit = 0xFF if (st and st.state is True) else 0x00
                 data[idx] = bit
@@ -901,35 +901,52 @@ class KocomController:
         return data
     
     def _generate_airconditioner(self, key: DeviceKey, action: str, data: bytes, **kwargs: Any) -> bytes:
-        st = self.gateway.registry.get(key)
-        if action == "query":
-             if st and isinstance(st.state, dict):
-                 hm = st.state.get("hvac_mode", HVACMode.OFF)
-                 if hm == HVACMode.OFF:
-                     data[0] = 0x00
-                 else:
-                     data[0] = 0x10
-                     # Try to map back, or default
-                     data[1] = REV_AC_HVAC_MAP.get(hm, 0x00)
-                 # Re-assert temp
-                 tt = st.state.get("target_temp", 24)
-                 data[5] = int(tt)
-             return data
+        # 현재 상태를 먼저 조회하여 기본값으로 설정 (상태 유지)
+        st = self.gateway.registry.get(key, include_shadow=True)
+        current_hvac = HVACMode.OFF
+        current_fan = FAN_LOW
+        current_target = 24.0
 
-        if action == "set_hvac":
+        if st and isinstance(st.state, dict):
+            current_hvac = st.state.get("hvac_mode", HVACMode.OFF)
+            current_fan = st.state.get("fan_mode", FAN_LOW)
+            current_target = st.state.get("target_temp", 24.0)
+
+        # 1. 기본값 세팅 (현재 상태 반영)
+        if current_hvac == HVACMode.OFF:
+            data[0] = 0x00
+        else:
+            data[0] = 0x10
+            data[1] = REV_AC_HVAC_MAP.get(current_hvac, 0x00)
+        
+        data[2] = REV_AC_FAN_MAP.get(current_fan, 0x01)
+        data[5] = int(current_target)
+
+        # 2. 명령(Action)에 따른 오버라이드
+        if action == "query":
+            pass # 이미 위에서 현재 상태를 반영함
+
+        elif action == "set_hvac":
             hm = kwargs["hvac_mode"]
             if hm == HVACMode.OFF:
                 data[0] = 0x00
             else:
                 data[0] = 0x10
-                data[1] = REV_AC_HVAC_MAP[hm]
+                data[1] = REV_AC_HVAC_MAP.get(hm, 0x00)
+        
         elif action == "set_fan":
             fm = kwargs["fan_mode"]
-            data[0] = 0x10
-            data[2] = REV_AC_FAN_MAP[fm]
+            # 팬 모드를 변경하려면 전원이 켜져 있어야 함 (0x10)
+            # 만약 현재 꺼져있는데 팬만 바꾸라고 하면? -> 보통 켜지면서 바뀜 or 무시
+            if data[0] == 0x00: 
+                data[0] = 0x10 # 팬 제어 시 전원 ON 처리 (필요 시 수정)
+            data[2] = REV_AC_FAN_MAP.get(fm, 0x01)
+            
         elif action == "set_temperature":
             tt = kwargs["target_temp"]
-            data[0] = 0x10
+            if data[0] == 0x00:
+                data[0] = 0x10 # 온도 제어 시 전원 ON
             data[5] = int(tt)
+
         return data
     
