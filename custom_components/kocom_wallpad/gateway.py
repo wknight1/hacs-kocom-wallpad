@@ -209,20 +209,17 @@ class KocomGateway:
                 )
                 
                 if idle_time > 20:
-                    LOGGER.debug("Gateway: 유휴 상태 감지 (%.1fs). 하트비트 송신.", idle_time)
-                    from .models import DeviceKey, SubType
-                    from .const import DeviceType
-                    # 하트비트를 조명(LIGHT)에서 가스밸브(GASVALVE) 쿼리로 변경
-                    # 이유: 
-                    # 1. 조명 쿼리(0x00)가 제어 명령으로 인식되어 월패드/에어컨 비프음 유발 가능성
-                    # 2. 조명 쿼리 시 상태 미상인 조명이 꺼지는(0x00) 사이드 이펙트 방지
-                    # 3. 가스밸브 쿼리는 0x02 커맨드를 사용하여 비교적 안전한 상태 조회임
-                    key = DeviceKey(DeviceType.GASVALVE, 0, 0, SubType.NONE)
-                    try:
-                        packet, _, _ = self.controller.generate_command(key, "query")
-                        await self.conn.send(packet)
-                    except Exception:
-                        pass
+                    # LOGGER.debug("Gateway: 유휴 상태 감지 (%.1fs). 하트비트 송신.", idle_time)
+                    # from .models import DeviceKey, SubType
+                    # from .const import DeviceType
+                    # 하트비트 기능 비활성화 (주기적 비프음 방지)
+                    # key = DeviceKey(DeviceType.GASVALVE, 0, 0, SubType.NONE)
+                    # try:
+                    #     packet, _, _ = self.controller.generate_command(key, "query")
+                    #     await self.conn.send(packet)
+                    # except Exception:
+                    #     pass
+                    pass
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -330,13 +327,10 @@ class KocomGateway:
 
                 if success:
                     self._consecutive_failures = 0
-                    if item.action != "query":
-                        try:
-                            q_packet, q_expect, q_timeout = self.controller.generate_command(item.key, "query")
-                            await self.conn.send(q_packet)
-                            await self._wait_for_confirmation(item.key, q_expect, q_timeout)
-                        except Exception:
-                            pass
+                    # 명령 성공 후 즉시 상태 조회(query)를 날리는 로직 제거
+                    # 이유: 에어컨 등 일부 기기에서 제어 명령 직후 쿼리 수신 시 비프음이 중복(2회) 발생함.
+                    # 대부분의 RS485 기기는 제어 명령에 대한 응답으로 상태를 반환하므로,
+                    # 앞선 _wait_for_confirmation 단계에서 이미 상태가 업데이트되었을 가능성이 높음.
                 else:
                     self._consecutive_failures += 1
                     LOGGER.error("Gateway: 명령 최종 실패 (연속 실패: %d회)", self._consecutive_failures)
