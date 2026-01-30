@@ -261,8 +261,8 @@ class KocomGateway:
                     await self.conn.reconnect()
                     if self.conn._is_connected():
                         # 네트워크 복구 직후 기기 상태 재검색 (공유기 재부팅 대응)
-                        LOGGER.info("Gateway: 네트워크 복구 감지. 기기 상태 재동기화 시작.")
-                        asyncio.create_task(self._force_discovery())
+                        LOGGER.info("Gateway: 네트워크 복구 감지. (재탐색 건너뜀)")
+                        # asyncio.create_task(self._force_discovery())
                     else:
                         await asyncio.sleep(5)
                         continue
