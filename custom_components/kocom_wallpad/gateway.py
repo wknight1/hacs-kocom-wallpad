@@ -243,7 +243,10 @@ class KocomGateway:
         from .const import DeviceType
         
         # 주요 기기 타입들에 대해 룸 0번부터 조회를 날림
-        for dt in [DeviceType.LIGHT, DeviceType.THERMOSTAT, DeviceType.VENTILATION, DeviceType.AIRCONDITIONER]:
+        # 주의: 에어컨(AIRCONDITIONER) 및 난방기(THERMOSTAT)는 상태 조회(Query) 패킷 수신 시
+        # 비프음이 발생하는 모델이 있으므로, 자동 탐색 대상에서 제외함.
+        # 사용자가 직접 제어하거나 월패드에서 상태가 변경될 때 등록되도록 함 (Lazy Discovery).
+        for dt in [DeviceType.LIGHT, DeviceType.VENTILATION]:
             for room in range(5):  # 룸 0~4번까지 시도
                 key = DeviceKey(device_type=dt, room_index=room, device_index=0, sub_type=SubType.NONE)
                 await self.async_send_action(key, "query")
