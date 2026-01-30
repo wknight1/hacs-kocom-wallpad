@@ -1,5 +1,10 @@
 # Changelog
 
+## [v2.2.3] - 2026-01-30
+### Fixed
+- **Deep Silence:** Home Assistant의 자동 폴링(30초 주기)을 강제로 비활성화(`should_poll=False`)하여, 사용자가 조작하지 않을 때 발생하는 주기적인 비프음 및 불필요한 트래픽을 원천 차단.
+- **Discovery Rate Limit:** 네트워크 연결이 불안정할 때 기기 탐색(Discovery)이 반복적으로 실행되어 비프음 폭풍을 유발하는 문제를 방지하기 위해, 재탐색 최소 간격(60초) 제한 도입.
+
 ## [v2.2.2] - 2026-01-30
 ### Fixed
 - **Silence & Optimization:** 주기적 비프음의 근본 원인인 하트비트(Heartbeat) 기능을 완전히 비활성화.

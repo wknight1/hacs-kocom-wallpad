@@ -140,6 +140,7 @@ class KocomGateway:
         self._pendings: list[_PendingWaiter] = []
         self._last_rx_monotonic: float = 0.0
         self._last_tx_monotonic: float = 0.0
+        self._last_discovery_time: float = 0.0
         self._restore_mode: bool = False
         self._force_register_uid: str | None = None
         self._consecutive_failures: int = 0
@@ -227,6 +228,12 @@ class KocomGateway:
 
     async def _force_discovery(self) -> None:
         """시스템 부팅 시 모든 기기 상태를 강제로 조회하여 탐색합니다."""
+        now = asyncio.get_running_loop().time()
+        if now - self._last_discovery_time < 60.0:
+            LOGGER.debug("Gateway: 기기 탐색이 최근에 실행되어 건너뜁니다.")
+            return
+        self._last_discovery_time = now
+
         await asyncio.sleep(5)  # 연결 안정화 대기
         if not self.conn._is_connected():
             return

@@ -113,6 +113,11 @@ class KocomBaseEntity(RestoreEntity):
         return self.gateway.is_available()
 
     @property
+    def should_poll(self) -> bool:
+        """HA의 폴링을 비활성화합니다. (Local Push 방식)"""
+        return False
+
+    @property
     def extra_restore_state_data(self) -> RestoredExtraData:
         """복원 시 필요한 추가 데이터를 저장합니다."""
         return RestoredExtraData({
