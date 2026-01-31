@@ -130,7 +130,10 @@ class KocomGateway:
         self.entry = entry
         self.host = host
         self.port = port
-        self.conn = AsyncConnection(host=host, port=port)
+        
+        conn_timeout = entry.options.get("connection_timeout", 10.0)
+        self.conn = AsyncConnection(host=host, port=port, connect_timeout=conn_timeout)
+        
         self.controller = KocomController(self)
         self.registry = EntityRegistry()
         self._tx_queue: asyncio.Queue[_CmdItem] = asyncio.Queue(maxsize=50)  # 최대 큐 크기 제한
@@ -194,10 +197,15 @@ class KocomGateway:
 
     async def _heartbeat_loop(self) -> None:
         """EW11 소켓 및 월패드 전원 상태 감시 루프."""
+        # 설정에서 하트비트 간격 가져오기 (기본값 5초)
+        poll_interval = self.entry.options.get("heartbeat_interval", 5)
+        if poll_interval <= 0:
+            LOGGER.info("Gateway: 하트비트 기능이 설정에 의해 비활성화되었습니다.")
+            return
+
         while True:
             try:
-                # 5초마다 깨어나서 정밀하게 유휴 상태를 체크 (타이밍 미스 방지)
-                await asyncio.sleep(5)
+                await asyncio.sleep(poll_interval)
                 if not self.conn._is_connected():
                     continue
                 
@@ -213,17 +221,14 @@ class KocomGateway:
                 
                 # 15초 이상 유휴 시 즉시 하트비트 전송 (EW11 30s 타임아웃에 대한 안전 마진 확보)
                 if idle_time > 15:
-                    # LOGGER.debug("Gateway: 세션 유지 하트비트 송신 (유휴 %.1fs)", idle_time) # 노이즈 감소를 위해 주석 처리 또는 레벨 하향
                     from .models import DeviceKey, SubType
                     from .const import DeviceType
                     
                     # 하트비트: 가스밸브(GASVALVE) 상태 조회를 사용하여 연결 유지 유도
                     key = DeviceKey(DeviceType.GASVALVE, 0, 0, SubType.NONE)
                     try:
-                        # t_hb = asyncio.get_running_loop().time()
                         packet, _, _ = self.controller.generate_command(key, "query")
                         await self.conn.send(packet)
-                        # LOGGER.debug("Gateway: 하트비트 패킷 송신 완료 (소요: %.3fs)", asyncio.get_running_loop().time() - t_hb)
                     except Exception:
                         pass
             except asyncio.CancelledError:

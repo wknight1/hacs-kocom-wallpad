@@ -31,8 +31,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # 각 플랫폼(light, switch 등) 설정 로드
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    
+    # 옵션 변경 감지 리스너 등록
+    entry.async_on_unload(entry.add_update_listener(update_listener))
 
     return True
+
+
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """옵션 변경 시 통합 구성요소를 다시 로드합니다."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
