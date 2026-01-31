@@ -832,6 +832,12 @@ class KocomController:
         return packet, expect, timeout
 
     def _generate_switch(self, key: DeviceKey, action: str, data: bytes) -> bytes:
+        if action == "query":
+            # 상태 조회 시에는 데이터 페이로드를 0x00으로 전송하여 상태 변경 없이 조회만 수행
+            # 기존에는 현재 HA 상태를 반영하여 전송했으나, 이로 인해 재연결 시 
+            # 의도치 않게 조명이 켜지는 문제(Discovery 시 0xFF 전송)가 발생함.
+            return data
+
         for idx in range(8):
             new_key = replace(key, device_index=idx)
             st = self.gateway.registry.get(new_key, include_shadow=True)
@@ -839,12 +845,7 @@ class KocomController:
                 bit = 0xFF if (st and st.state is True) else 0x00
                 data[idx] = bit
             else:
-                if action == "query":
-                    # Re-assert current state or default to OFF if unknown (safe fallback)
-                    bit = 0xFF if (st and st.state is True) else 0x00
-                    data[idx] = bit
-                else:
-                    data[idx] = 0xFF if action == "turn_on" else 0x00
+                data[idx] = 0xFF if action == "turn_on" else 0x00
         return data
 
     def _generate_ventilation(self, key: DeviceKey, action: str, data: bytes, **kwargs: Any) -> bytes:
