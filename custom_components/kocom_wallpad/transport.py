@@ -16,7 +16,7 @@ class AsyncConnection:
     host: str
     port: Optional[int]
     serial_baud: int = 9600
-    connect_timeout: float = 5.0
+    connect_timeout: float = 10.0
     reconnect_backoff: Tuple[float, float] = (1.0, 30.0)  # min, max seconds
 
     def __post_init__(self) -> None:
