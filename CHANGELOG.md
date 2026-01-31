@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.3.0] - 2026-01-31
+### Added
+- **Full-Stack Observability:** 시스템 전반의 상태를 수치화하여 로깅합니다.
+    - **Transport:** 재연결 시 지연 시간, 성공 소요 시간, 백오프 단계 정보 포함.
+    - **Gateway:** 송신 큐(TX Queue) 부하 상태 실시간 모니터링 및 하트비트 응답 지연 시간 기록.
+    - **Controller:** 패킷 프레이밍 에러(Framing Error) 시 깨진 패킷의 Hex 데이터 로그 기록.
+- **Enhanced Diagnostics:** 내부 메트릭을 추가하여 나중에 제가 로그만 보고도 시스템을 최적화할 수 있도록 정보를 강화했습니다.
+
 ## [v2.2.9] - 2026-01-31
 ### Added
 - **Production-Grade Diagnostics:** Home Assistant 표준 **진단(Diagnostics)** 플랫폼을 지원합니다.

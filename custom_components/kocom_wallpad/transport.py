@@ -148,15 +148,18 @@ class AsyncConnection:
             delay_min, delay_max = self.reconnect_backoff
             delay = self._last_reconn_delay if self._last_reconn_delay > 0.0 else delay_min
             
-            LOGGER.info("Transport: %.1f초 후 재연결 시도 (%s)", delay, self.host)
+            LOGGER.info("Transport: %.1f초 후 재연결 시도 (최대 지연: %.1fs, 대상: %s)", delay, delay_max, self.host)
             await asyncio.sleep(delay)
             
             self._last_reconn_delay = min(delay * 2, delay_max)
             
             try:
+                t0 = time.monotonic()
                 await self.open()
                 if self._is_connected():
-                    LOGGER.info("Transport: 재연결 성공 (%s)", self.host)
+                    duration = time.monotonic() - t0
+                    LOGGER.info("Transport: 재연결 성공 (소요: %.2fs, 대상: %s)", duration, self.host)
                     self._last_reconn_delay = delay_min
-            except Exception:
+            except Exception as e:
+                LOGGER.debug("Transport: 재연결 시도 실패 (%r)", e)
                 pass

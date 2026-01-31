@@ -274,6 +274,7 @@ class KocomController:
             candidate = buf.peek(PACKET_LEN)
             if not candidate.endswith(PACKET_SUFFIX):
                 # 프레이밍 에러: 한 바이트 건너뛰고 재탐색
+                LOGGER.debug("Controller: 프레이밍 에러 감지 (Prefix OK, Suffix Fail: %s)", candidate.hex())
                 buf.skip(1)
                 continue
                 

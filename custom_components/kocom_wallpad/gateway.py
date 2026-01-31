@@ -219,8 +219,10 @@ class KocomGateway:
                     # 하트비트: 가스밸브(GASVALVE) 상태 조회를 사용하여 연결 유지 유도
                     key = DeviceKey(DeviceType.GASVALVE, 0, 0, SubType.NONE)
                     try:
+                        t_hb = asyncio.get_running_loop().time()
                         packet, _, _ = self.controller.generate_command(key, "query")
                         await self.conn.send(packet)
+                        LOGGER.debug("Gateway: 하트비트 패킷 송신 완료 (소요: %.3fs)", asyncio.get_running_loop().time() - t_hb)
                     except Exception as hb_err:
                         LOGGER.debug("Gateway: 하트비트 송신 실패: %s", hb_err)
             except asyncio.CancelledError:
@@ -403,9 +405,13 @@ class KocomGateway:
 
     async def async_send_action(self, key: DeviceKey, action: str, **kwargs) -> bool:
         """디바이스 제어 명령을 전송 큐에 추가합니다."""
+        qsize = self._tx_queue.qsize()
         if self._tx_queue.full():
-            LOGGER.warning("Gateway: 송신 큐 가득 참 (Backpressure). 거부: %s", action)
+            LOGGER.warning("[%s] 송신 큐 가득 참 (현재: %d). 명령 거부: %s", key.unique_id, qsize, action)
             return False
+
+        if qsize > 5:
+            LOGGER.debug("[%s] 송신 큐 부하 감지 (대기열: %d)", key.unique_id, qsize)
 
         item = _CmdItem(key=key, action=action, kwargs=kwargs)
         try:
