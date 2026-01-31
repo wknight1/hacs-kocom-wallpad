@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 import asyncio
 import time
 
-from .const import LOGGER
+from .const import LOG_TRANSPORT as LOGGER
 
 
 @dataclass

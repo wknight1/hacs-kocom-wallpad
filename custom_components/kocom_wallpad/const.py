@@ -7,6 +7,9 @@ from enum import IntEnum
 from homeassistant.const import Platform
 
 LOGGER = logging.getLogger(__package__)
+LOG_TRANSPORT = logging.getLogger(f"{__package__}.transport")
+LOG_GATEWAY = logging.getLogger(f"{__package__}.gateway")
+LOG_CONTROLLER = logging.getLogger(f"{__package__}.controller")
 
 DOMAIN = "kocom_wallpad"
 PLATFORMS = [

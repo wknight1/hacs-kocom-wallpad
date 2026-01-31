@@ -17,7 +17,7 @@ from homeassistant.components.climate.const import (
 )
 
 from .const import (
-    LOGGER,
+    LOG_CONTROLLER as LOGGER,
     PACKET_PREFIX,
     PACKET_SUFFIX,
     PACKET_LEN,

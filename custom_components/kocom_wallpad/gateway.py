@@ -11,7 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 
 from .const import (
-    LOGGER,
+    LOG_GATEWAY as LOGGER,
     RECV_POLL_SEC,
     IDLE_GAP_SEC,
     SEND_RETRY_MAX,

@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.2.8] - 2026-01-31
+### Added
+- **Elegant Logging (Categorization):** 로그를 `gateway`, `transport`, `controller` 범주로 세분화하여 문제 분석의 해상도를 높였습니다.
+    - 이제 특정 모듈(예: 패킷 파싱)의 로그만 선택적으로 디버깅할 수 있습니다.
+- **UI-Based Debug Logging:** Home Assistant 설정 화면에서 "디버그 로깅 활성화" 버튼을 지원합니다. (재시작 및 yaml 수정 불필요)
+### Documentation
+- **Enhanced Debug Guide:** 로깅 기법 및 로그 분석 방법에 대한 가이드를 `README.md`에 추가했습니다.
+
 ## [v2.2.7] - 2026-01-31
 ### Fixed
 - **Session Stability (Keep-Alive):** 하트비트 주기를 5분에서 25초로 조정하여 EW11의 TCP 타임아웃(30s)에 의한 세션 끊김을 방지했습니다.
