@@ -1,5 +1,10 @@
 # Changelog
 
+## [v2.4.1] - 2026-02-01
+### Fixed
+- **Discovery Safety:** '스캔 간격(scan_interval)' 옵션이 0(비활성)일 경우, 부팅 시에도 자동 탐색(Discovery)을 수행하지 않도록 수정하여 안전성을 강화했습니다.
+    - 사용자가 폴링을 원치 않는 경우 완전한 침묵(Silence)을 보장합니다.
+
 ## [v2.4.0] - 2026-02-01
 ### Added
 - **Options Flow (Configurability):** 통합 구성요소의 핵심 파라미터를 YAML 수정 없이 UI에서 실시간으로 변경할 수 있습니다.

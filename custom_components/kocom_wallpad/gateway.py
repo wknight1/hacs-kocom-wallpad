@@ -238,6 +238,13 @@ class KocomGateway:
 
     async def _force_discovery(self) -> None:
         """시스템 부팅 시 모든 기기 상태를 강제로 조회하여 탐색합니다."""
+        # 사용자가 설정한 scan_interval이 0(비활성)이면 부팅 시 탐색도 수행하지 않음
+        # 단, 초기 1회는 필요할 수 있으므로 정책 결정 필요.
+        # 여기서는 사용자가 폴링을 껐다면 아예 조회 패킷을 안 보내는 게 안전하다고 판단.
+        if self.entry.options.get("scan_interval", 0) <= 0:
+            LOGGER.info("Gateway: 자동 탐색(Discovery)이 설정에 의해 비활성화되었습니다.")
+            return
+
         now = asyncio.get_running_loop().time()
         if now - self._last_discovery_time < 60.0:
             LOGGER.debug("Gateway: 기기 탐색이 최근에 실행되어 건너뜁니다.")
