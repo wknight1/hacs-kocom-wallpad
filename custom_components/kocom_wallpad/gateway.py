@@ -174,8 +174,8 @@ class KocomGateway:
         except Exception as e:
             LOGGER.error("Gateway: 초기 연결 실패 (백그라운드에서 재시도): %s", e)
             
-        self._last_rx_monotonic = self.conn.idle_since()
-        self._last_tx_monotonic = self.conn.idle_since()
+        self._last_rx_monotonic = asyncio.get_running_loop().time()
+        self._last_tx_monotonic = asyncio.get_running_loop().time()
         self._task_reader = asyncio.create_task(self._read_loop())
         self._task_sender = asyncio.create_task(self._sender_loop())
         self._task_heartbeat = asyncio.create_task(self._heartbeat_loop())
@@ -196,7 +196,8 @@ class KocomGateway:
         """EW11 소켓 및 월패드 전원 상태 감시 루프."""
         while True:
             try:
-                await asyncio.sleep(20)
+                # 5초마다 깨어나서 정밀하게 유휴 상태를 체크 (타이밍 미스 방지)
+                await asyncio.sleep(5)
                 if not self.conn._is_connected():
                     continue
                 
@@ -210,21 +211,21 @@ class KocomGateway:
                     asyncio.get_running_loop().time() - self._last_tx_monotonic
                 )
                 
-                # 20초 이상 유휴 시 하트비트 전송 (EW11 30s 타임아웃 방지)
-                if idle_time > 20:
-                    LOGGER.debug("Gateway: 세션 유지 하트비트 송신 (유휴 %.1fs)", idle_time)
+                # 15초 이상 유휴 시 즉시 하트비트 전송 (EW11 30s 타임아웃에 대한 안전 마진 확보)
+                if idle_time > 15:
+                    # LOGGER.debug("Gateway: 세션 유지 하트비트 송신 (유휴 %.1fs)", idle_time) # 노이즈 감소를 위해 주석 처리 또는 레벨 하향
                     from .models import DeviceKey, SubType
                     from .const import DeviceType
                     
                     # 하트비트: 가스밸브(GASVALVE) 상태 조회를 사용하여 연결 유지 유도
                     key = DeviceKey(DeviceType.GASVALVE, 0, 0, SubType.NONE)
                     try:
-                        t_hb = asyncio.get_running_loop().time()
+                        # t_hb = asyncio.get_running_loop().time()
                         packet, _, _ = self.controller.generate_command(key, "query")
                         await self.conn.send(packet)
-                        LOGGER.debug("Gateway: 하트비트 패킷 송신 완료 (소요: %.3fs)", asyncio.get_running_loop().time() - t_hb)
-                    except Exception as hb_err:
-                        LOGGER.debug("Gateway: 하트비트 송신 실패: %s", hb_err)
+                        # LOGGER.debug("Gateway: 하트비트 패킷 송신 완료 (소요: %.3fs)", asyncio.get_running_loop().time() - t_hb)
+                    except Exception:
+                        pass
             except asyncio.CancelledError:
                 break
             except Exception as e:
