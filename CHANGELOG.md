@@ -1,5 +1,12 @@
 # Changelog
 
+## [v2.2.9] - 2026-01-31
+### Added
+- **Production-Grade Diagnostics:** Home Assistant 표준 **진단(Diagnostics)** 플랫폼을 지원합니다.
+    - 이제 통합구성요소 카드에서 '진단 정보 다운로드'를 통해 JSON 형태의 시스템 상태를 추출할 수 있습니다.
+- **Latency Tracking:** 명령 송신 후 응답까지 걸리는 시간을 측정하여 로그에 기록합니다.
+- **Structured Context Logging:** 로그 메시지 앞에 `[Device ID]`, `[System]` 등의 식별자를 추가하여 가독성을 개선했습니다.
+
 ## [v2.2.8] - 2026-01-31
 ### Added
 - **Elegant Logging (Categorization):** 로그를 `gateway`, `transport`, `controller` 범주로 세분화하여 문제 분석의 해상도를 높였습니다.

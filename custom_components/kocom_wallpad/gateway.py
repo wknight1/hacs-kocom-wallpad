@@ -203,7 +203,7 @@ class KocomGateway:
                 # 가용성 체크 (로깅)
                 if not self.is_available():
                     recv_idle = self.conn.recv_idle_since()
-                    LOGGER.warning("Gateway: 월패드 무반응 상태 감지 (수신 유휴: %.1f초). 버스가 조용하거나 전원이 꺼졌을 수 있습니다.", recv_idle)
+                    LOGGER.warning("[System] 월패드 무반응 상태 감지 (수신 유휴: %.1f초). 버스가 조용하거나 전원이 꺼졌을 수 있습니다.", recv_idle)
 
                 idle_time = min(
                     asyncio.get_running_loop().time() - self._last_rx_monotonic,
@@ -322,10 +322,12 @@ class KocomGateway:
                             LOGGER.warning("Gateway: 연결 미수립 상태. 명령 중단.")
                             break
 
+                        t_send = asyncio.get_running_loop().time()
                         await self.conn.send(packet)
                         self._last_tx_monotonic = asyncio.get_running_loop().time()
                         await self._wait_for_confirmation(item.key, expect_predicate, timeout)
-                        LOGGER.debug("Gateway: 명령 성공 (시도 %d회)", attempt)
+                        latency = asyncio.get_running_loop().time() - t_send
+                        LOGGER.debug("[%s] 명령 성공 (소요: %.2fs, 시도 %d회)", item.key.unique_id, latency, attempt)
                         success = True
                         break
 
