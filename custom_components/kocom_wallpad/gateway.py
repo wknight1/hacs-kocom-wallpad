@@ -184,11 +184,11 @@ class KocomGateway:
         asyncio.create_task(self._force_discovery())
 
     def is_available(self) -> bool:
-        """현재 월패드 통신이 가용한지 판단합니다 (10분 이상 무반응 시 불가)."""
+        """현재 월패드 통신이 가용한지 판단합니다 (30분 이상 무반응 시 불가)."""
         if not self.conn._is_connected():
             return False
-        # 월패드로부터 10분(600초) 이상 패킷이 없으면 가용성 상실로 간주
-        if self.conn.recv_idle_since() > 600:
+        # 월패드로부터 30분(1800초) 이상 패킷이 없으면 가용성 상실로 간주
+        if self.conn.recv_idle_since() > 1800:
             return False
         return True
 
@@ -196,31 +196,33 @@ class KocomGateway:
         """EW11 소켓 및 월패드 전원 상태 감시 루프."""
         while True:
             try:
-                await asyncio.sleep(25)
+                await asyncio.sleep(60)
                 if not self.conn._is_connected():
                     continue
                 
                 # 가용성 체크 (로깅)
                 if not self.is_available():
-                    LOGGER.warning("Gateway: 월패드 무반응 상태 감지 (버스가 조용하거나 전원이 꺼짐).")
+                    recv_idle = self.conn.recv_idle_since()
+                    LOGGER.warning("Gateway: 월패드 무반응 상태 감지 (수신 유휴: %.1f초). 버스가 조용하거나 전원이 꺼졌을 수 있습니다.", recv_idle)
 
                 idle_time = min(
                     asyncio.get_running_loop().time() - self._last_rx_monotonic,
                     asyncio.get_running_loop().time() - self._last_tx_monotonic
                 )
                 
-                if idle_time > 20:
-                    # LOGGER.debug("Gateway: 유휴 상태 감지 (%.1fs). 하트비트 송신.", idle_time)
-                    # from .models import DeviceKey, SubType
-                    # from .const import DeviceType
-                    # 하트비트 기능 비활성화 (주기적 비프음 방지)
-                    # key = DeviceKey(DeviceType.GASVALVE, 0, 0, SubType.NONE)
-                    # try:
-                    #     packet, _, _ = self.controller.generate_command(key, "query")
-                    #     await self.conn.send(packet)
-                    # except Exception:
-                    #     pass
-                    pass
+                # 5분(300초) 이상 유휴 시에만 하트비트 전송 (비프음 빈도 최소화)
+                if idle_time > 300:
+                    LOGGER.debug("Gateway: 장시간 유휴 상태 감지 (%.1fs). 하트비트 송신.", idle_time)
+                    from .models import DeviceKey, SubType
+                    from .const import DeviceType
+                    
+                    # 하트비트: 가스밸브(GASVALVE) 상태 조회를 사용하여 연결 유지 유도
+                    key = DeviceKey(DeviceType.GASVALVE, 0, 0, SubType.NONE)
+                    try:
+                        packet, _, _ = self.controller.generate_command(key, "query")
+                        await self.conn.send(packet)
+                    except Exception as hb_err:
+                        LOGGER.debug("Gateway: 하트비트 송신 실패: %s", hb_err)
             except asyncio.CancelledError:
                 break
             except Exception as e:
