@@ -196,7 +196,7 @@ class KocomGateway:
         """EW11 소켓 및 월패드 전원 상태 감시 루프."""
         while True:
             try:
-                await asyncio.sleep(25)
+                await asyncio.sleep(20)
                 if not self.conn._is_connected():
                     continue
                 
@@ -210,8 +210,8 @@ class KocomGateway:
                     asyncio.get_running_loop().time() - self._last_tx_monotonic
                 )
                 
-                # 25초 이상 유휴 시 하트비트 전송 (EW11 30s 타임아웃 방지)
-                if idle_time > 25:
+                # 20초 이상 유휴 시 하트비트 전송 (EW11 30s 타임아웃 방지)
+                if idle_time > 20:
                     LOGGER.debug("Gateway: 세션 유지 하트비트 송신 (유휴 %.1fs)", idle_time)
                     from .models import DeviceKey, SubType
                     from .const import DeviceType

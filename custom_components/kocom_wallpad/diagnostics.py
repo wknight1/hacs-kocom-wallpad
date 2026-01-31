@@ -23,6 +23,7 @@ async def async_get_config_entry_diagnostics(
             "host": gateway.host,
             "port": gateway.port,
             "connected": gateway.conn._is_connected(),
+            "reconnect_count": gateway.conn._reconnect_count,
             "idle_since": f"{gateway.conn.idle_since():.1f}s",
             "recv_idle_since": f"{gateway.conn.recv_idle_since():.1f}s",
             "consecutive_failures": gateway._consecutive_failures,

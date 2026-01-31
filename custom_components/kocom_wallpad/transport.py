@@ -27,6 +27,7 @@ class AsyncConnection:
         self._last_recv_mono: float = time.monotonic()
         self._last_reconn_delay: float = 0.0
         self._connected = False
+        self._reconnect_count = 0
         self._reconnect_lock = asyncio.Lock()
 
     async def open(self) -> None:
@@ -53,6 +54,7 @@ class AsyncConnection:
                 )
                 LOGGER.info("Transport: 소켓 연결 성공: %s:%s", self.host, self.port)
             self._connected = True
+            self._reconnect_count += 1
             self._touch()
             self._touch_recv()
         except Exception as e:
@@ -62,6 +64,9 @@ class AsyncConnection:
 
     async def close(self) -> None:
         """연결을 종료하고 자원을 정리합니다."""
+        if not self._connected and self._writer is None:
+            return
+
         self._connected = False
         if self._writer is not None:
             try:

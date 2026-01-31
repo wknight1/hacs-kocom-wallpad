@@ -1,5 +1,14 @@
 # Changelog
 
+## [v2.3.1] - 2026-01-31
+### Fixed
+- **Session Optimization:** 하트비트 주기를 20초로 단축하여 일부 EW11 환경에서 발생하는 공격적인 세션 종료(EOF) 현상을 완화했습니다.
+- **Redundant Log Cleanup:** 연결 종료 시 중복으로 남던 로그를 제거하고 세션 상태 관리를 정교화했습니다.
+### Added
+- **Stability Metrics:** 진단 데이터에 '누적 재연결 횟수'를 추가하여 장기적인 세션 안정성을 모니터링할 수 있게 개선했습니다.
+### Maintenance
+- **Git Hygiene:** 프로젝트 루트의 `log/` 디렉토리를 Git 추적 대상에서 제외했습니다.
+
 ## [v2.3.0] - 2026-01-31
 ### Added
 - **Full-Stack Observability:** 시스템 전반의 상태를 수치화하여 로깅합니다.

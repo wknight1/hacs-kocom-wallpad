@@ -166,6 +166,9 @@ cython_debug/
 .AppleDouble
 .LSOverride
 
+# Project Logs
+/log/
+
 # Thumbnails
 ._*
 .Spotlight-V100
