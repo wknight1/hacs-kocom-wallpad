@@ -338,6 +338,14 @@ class KocomGateway:
                             break
 
                         t_send = asyncio.get_running_loop().time()
+                        
+                        # 패킷 해석 로그
+                        try:
+                            readable_packet = self.controller.interpret_packet(packet)
+                            LOGGER.debug(f"Gateway: 패킷 전송 -> {readable_packet}")
+                        except Exception:
+                            pass
+
                         await self.conn.send(packet)
                         self._last_tx_monotonic = asyncio.get_running_loop().time()
                         await self._wait_for_confirmation(item.key, expect_predicate, timeout)

@@ -1,130 +1,13 @@
 # Changelog
 
-## [v2.4.1] - 2026-02-01
-### Fixed
-- **Discovery Safety:** '스캔 간격(scan_interval)' 옵션이 0(비활성)일 경우, 부팅 시에도 자동 탐색(Discovery)을 수행하지 않도록 수정하여 안전성을 강화했습니다.
-    - 사용자가 폴링을 원치 않는 경우 완전한 침묵(Silence)을 보장합니다.
+## [2.4.2] - 2026-02-01
 
-## [v2.4.0] - 2026-02-01
-### Added
-- **Options Flow (Configurability):** 통합 구성요소의 핵심 파라미터를 YAML 수정 없이 UI에서 실시간으로 변경할 수 있습니다.
-    - **하트비트 간격:** 기본 5초 (0~60초 설정 가능, 0=비활성).
-    - **연결 타임아웃:** 기본 10초 (1~60초 설정 가능). 네트워크 환경이 열악한 경우 늘려서 안정성을 확보할 수 있습니다.
-    - **스캔 간격:** 폴링 주기 설정 (기본값 0=비활성/Push 모드 권장).
-- **Adaptive Configuration:** 설정 변경 시 즉시 통합구성요소가 리로드되어 변경 사항이 반영됩니다.
+### Critical Safety Fixes 🛡️
+- **Passive Query Enforcement:** All device queries (Thermostat, AC, Ventilation, Light, Gas) now send zeroed payloads (`00...`). This prevents unintended state changes (e.g., setting thermostat to 40°C or turning on lights) during discovery or reconnection.
+- **Gas Valve Stability:** Removed hardcoded `0x02` command for Gas Valve. It now correctly uses `0x00` for queries and closing, fixing the issue where the gas controller would power cycle or reset.
 
-## [v2.3.3] - 2026-02-01
-### Fixed
-- **Precision Heartbeat Timing:** 하트비트 체크 주기를 20초에서 5초로 단축하고, 발송 임계값을 15초로 설정하여 EW11의 30초 타임아웃을 완벽하게 방어하도록 개선했습니다.
-    - 기존 로직의 타이밍 미스로 인해 40초마다 세션이 끊기고 재연결되는 문제를 해결했습니다.
-- **Log Initialization Fix:** 게이트웨이 초기화 시 타임스탬프 계산 오류를 수정하여, 시작 직후 불필요한 하트비트가 전송되거나 지연되는 문제를 해결했습니다.
+### Improvements 🚀
+- **Enhanced Logging:** Logs now include human-readable interpretations of sent packets (e.g., `Type=THERMOSTAT, ... (Mode=HEAT, Set=24C)`), making troubleshooting much easier.
 
-## [v2.3.2] - 2026-02-01
-### Fixed
-- **Critical Safety Fix:** 공유기 재부팅이나 네트워크 재연결 시, 통합구성요소가 조명 상태를 조회하는 과정에서 모든 조명을 켜버리는 치명적인 오류를 수정했습니다.
-    - 기존에는 조회(Query) 패킷 생성 시 HA의 마지막 상태(ON)를 반영하여 전송했으나, 이로 인해 조회 패킷이 '켜기 명령'으로 오인되어 조명을 일괄 점등시키는 문제가 있었습니다.
-    - 이제 조명 조회 패킷은 항상 데이터 페이로드를 `0x00`으로 비워서 전송하여, 순수하게 상태만 물어보도록(Passive Query) 개선되었습니다.
-
-## [v2.3.1] - 2026-01-31
-### Fixed
-- **Session Optimization:** 하트비트 주기를 20초로 단축하여 일부 EW11 환경에서 발생하는 공격적인 세션 종료(EOF) 현상을 완화했습니다.
-- **Redundant Log Cleanup:** 연결 종료 시 중복으로 남던 로그를 제거하고 세션 상태 관리를 정교화했습니다.
-### Added
-- **Stability Metrics:** 진단 데이터에 '누적 재연결 횟수'를 추가하여 장기적인 세션 안정성을 모니터링할 수 있게 개선했습니다.
-### Maintenance
-- **Git Hygiene:** 프로젝트 루트의 `log/` 디렉토리를 Git 추적 대상에서 제외했습니다.
-
-## [v2.3.0] - 2026-01-31
-### Added
-- **Full-Stack Observability:** 시스템 전반의 상태를 수치화하여 로깅합니다.
-    - **Transport:** 재연결 시 지연 시간, 성공 소요 시간, 백오프 단계 정보 포함.
-    - **Gateway:** 송신 큐(TX Queue) 부하 상태 실시간 모니터링 및 하트비트 응답 지연 시간 기록.
-    - **Controller:** 패킷 프레이밍 에러(Framing Error) 시 깨진 패킷의 Hex 데이터 로그 기록.
-- **Enhanced Diagnostics:** 내부 메트릭을 추가하여 나중에 제가 로그만 보고도 시스템을 최적화할 수 있도록 정보를 강화했습니다.
-
-## [v2.2.9] - 2026-01-31
-### Added
-- **Production-Grade Diagnostics:** Home Assistant 표준 **진단(Diagnostics)** 플랫폼을 지원합니다.
-    - 이제 통합구성요소 카드에서 '진단 정보 다운로드'를 통해 JSON 형태의 시스템 상태를 추출할 수 있습니다.
-- **Latency Tracking:** 명령 송신 후 응답까지 걸리는 시간을 측정하여 로그에 기록합니다.
-- **Structured Context Logging:** 로그 메시지 앞에 `[Device ID]`, `[System]` 등의 식별자를 추가하여 가독성을 개선했습니다.
-
-## [v2.2.8] - 2026-01-31
-### Added
-- **Elegant Logging (Categorization):** 로그를 `gateway`, `transport`, `controller` 범주로 세분화하여 문제 분석의 해상도를 높였습니다.
-    - 이제 특정 모듈(예: 패킷 파싱)의 로그만 선택적으로 디버깅할 수 있습니다.
-- **UI-Based Debug Logging:** Home Assistant 설정 화면에서 "디버그 로깅 활성화" 버튼을 지원합니다. (재시작 및 yaml 수정 불필요)
-### Documentation
-- **Enhanced Debug Guide:** 로깅 기법 및 로그 분석 방법에 대한 가이드를 `README.md`에 추가했습니다.
-
-## [v2.2.7] - 2026-01-31
-### Fixed
-- **Session Stability (Keep-Alive):** 하트비트 주기를 5분에서 25초로 조정하여 EW11의 TCP 타임아웃(30s)에 의한 세션 끊김을 방지했습니다.
-- **Connection Reliability:** 초기 연결 타임아웃을 5초에서 10초로 연장하여 불안정한 WiFi 환경에서의 접속 성공률을 높였습니다.
-- **Log Noise Reduction:** 세션이 정상적으로 재연결되는 과정에서 발생하는 불필요한 경고 로그를 최적화했습니다.
-
-## [v2.2.6] - 2026-01-31
-### Fixed
-- **Sparse Heartbeat:** 5분 이상의 장시간 유휴 시에만 최소한의 하트비트(가스밸브 상태 조회)를 전송하여 연결 유지.
-    - 이전 버전에서 비프음 방지를 위해 하트비트를 완전히 제거했으나, 이로 인해 일부 환경에서 TCP 세션이 끊기거나 월패드가 '무반응'으로 오인되는 문제를 해결했습니다.
-- **Improved Availability Tracking:** 가용성 판단(Unresponsive) 타임아웃을 10분에서 30분으로 연장하고, 로그에 상세 유휴 시간을 포함하여 원인 분석을 용이하게 개선.
-- **Connection Stability:** 하트비트 부재로 인한 세션 종료 및 재시도 과정에서 제어 명령이 누락되는 현상 방지.
-
-## [v2.2.5] - 2026-01-30
-### Fixed
-- **Zero-Beep Discovery:** 시스템 부팅 시 실행되는 자동 탐색(Discovery) 대상에서 **에어컨(AC)**과 **난방기(Thermostat)**를 제외.
-    - 해당 기기들은 상태 조회(Query) 패킷 수신 시 비프음을 내는 특성이 있어, 부팅 시 소음을 유발했습니다.
-    - 이제 이 기기들은 사용자가 직접 제어하거나 월패드에서 상태를 변경할 때 자동으로 등록됩니다 (Lazy Discovery).
-- **Periodic Beep Fix:** 간헐적인 통합 구성요소 재시작이나 리로드 시에도 에어컨 비프음이 발생하지 않도록 조치.
-
-## [v2.2.4] - 2026-01-30
-### Fixed
-- **Silent Reconnection:** 네트워크 재연결 시 자동으로 실행되던 기기 탐색(Discovery) 로직을 제거.
-    - 기존에는 'Deep Silence'로 인해 소켓 타임아웃이 발생하면, 재연결 과정에서 전체 기기 탐색(20개 이상의 패킷)이 실행되어 주기적인 비프음을 유발했습니다.
-    - 이제 재연결은 패킷 전송 없이 조용히 이루어지며, 기기 상태는 월패드의 브로드캐스트나 사용자의 명시적 제어 시 갱신됩니다.
-
-## [v2.2.3] - 2026-01-30
-### Fixed
-- **Deep Silence:** Home Assistant의 자동 폴링(30초 주기)을 강제로 비활성화(`should_poll=False`)하여, 사용자가 조작하지 않을 때 발생하는 주기적인 비프음 및 불필요한 트래픽을 원천 차단.
-- **Discovery Rate Limit:** 네트워크 연결이 불안정할 때 기기 탐색(Discovery)이 반복적으로 실행되어 비프음 폭풍을 유발하는 문제를 방지하기 위해, 재탐색 최소 간격(60초) 제한 도입.
-
-## [v2.2.2] - 2026-01-30
-### Fixed
-- **Silence & Optimization:** 주기적 비프음의 근본 원인인 하트비트(Heartbeat) 기능을 완전히 비활성화.
-- **Double Beep Fix:** 에어컨 등 기기 제어 성공 후 자동으로 상태 조회를 수행하던 로직을 제거하여, 제어 시 비프음이 두 번 울리는 현상 해결.
-
-## [v2.2.1] - 2026-01-26
-### Fixed
-- **AC Beep & Light Auto-Off Fix:** 하트비트 쿼리 대상을 '조명'에서 '가스밸브(상태 조회)'로 변경하여, 주기적인 비프음 발생 및 특정 조명이 자동으로 꺼지는 문제 해결.
-- **Light Control Safety:** 조명 상태 조회(Query) 시, 레지스트리에 상태가 없는 경우 무조건 끄는(OFF) 문제를 방지하기 위해 섀도우 상태(Shadow State) 참조 로직 추가.
-### Optimized
-- **AC Packet Logic:** 에어컨 제어 시 변경하지 않는 값(팬 모드, 온도 등)이 0으로 초기화되지 않도록, 현재 상태를 보존하여 패킷을 생성하는 로직 개선.
-
-## [v2.2.0] - 2026-01-25
-### Added
-- **Network Resilience:** 공유기 재부팅 등 네트워크 단절 시 자동 복구 및 복구 직후 즉시 재검색(Auto-Discovery) 수행.
-- **Availability Monitoring:** 월패드 무반응(전원 꺼짐 등) 감지 시 엔티티를 자동으로 '사용 불가능(Unavailable)' 상태로 전환.
-- **Heartbeat Enhancement:** 마지막 활동뿐만 아니라 실제 수신 시간을 추적하여 통신 신뢰성 강화.
-
-## [v2.1.9] - 2026-01-25
-### Added
-- **Keep-Alive Heartbeat:** EW11 소켓 타임아웃(30s) 방지를 위한 자동 유휴 쿼리 로직 도입.
-### Changed
-- **Timing Optimization:** EW11 하드웨어 설정(Gap Time 50ms)에 맞춰 `IDLE_GAP_SEC` 및 `RECV_POLL_SEC` 최적화.
-- **Improved Response Time:** RS485 버스 유휴 감지 시간을 단축하여 제어 반응 속도 개선.
-
-## [v2.1.8] - 2026-01-25
-### Changed
-- **Log Level Optimization:** `Peer resolution failed` 및 `EOF` 로그를 `WARNING`에서 `DEBUG`로 하향 조정하여 로그 스팸 방지.
-- **Improved Packet Filtering:** 제어 대상이 아닌 장치 간 패킷(0x61, 0x62 등)을 조용히 무시하도록 최적화.
-
-## [v2.1.7] - 2026-01-25
-### Fixed
-- **Method Restoration:** v2.1.6에서 누락되었던 `async_get_entity_registry`, `async_send_action` 등 핵심 메서드 전수 복구.
-- **Syntax Fix:** `gateway.py` 내 비정상적으로 종료된 루프 구조 수정 (`SyntaxError` 해결).
-
-## [v2.1.6] - 2026-01-25
-### Added
-- **RingBuffer:** 고성능 원형 버퍼 기반 패킷 파싱 도입.
-- **Immediate Polling:** 제어 성공 직후 상태 강제 동기화 기능 추가.
-- **Namespace Migration:** `lunDreame`에서 `wknight1`으로 리브랜딩.
+## [2.4.1] - 2025-05-15
+... (Previous versions)

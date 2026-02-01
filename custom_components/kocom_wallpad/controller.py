@@ -779,6 +779,33 @@ class KocomController:
             return self._expect_for_airconditioner(key, action, **kwargs)            
         return self._match_key_and(key, lambda _d: False), CMD_CONFIRM_TIMEOUT
 
+    def interpret_packet(self, packet: bytes) -> str:
+        """패킷을 사람이 읽을 수 있는 문자열로 변환합니다."""
+        try:
+            frame = PacketFrame(packet)
+            device_name = frame.dev_type.name
+            room = frame.dev_room
+            cmd = f"0x{frame.command:02X}"
+            payload = frame.payload.hex()
+            
+            desc = f"Type={device_name}, Room={room}, Cmd={cmd}, Data={payload}"
+            
+            # 상세 해석 추가
+            if frame.dev_type == DeviceType.LIGHT:
+                if frame.command == 0x00:
+                    on_indices = [i for i, b in enumerate(frame.payload) if b == 0xFF]
+                    desc += f" (Lights ON: {on_indices})" if on_indices else " (All OFF)"
+            elif frame.dev_type == DeviceType.THERMOSTAT:
+                if frame.command == 0x00:
+                    curr = frame.payload[4]
+                    target = frame.payload[2]
+                    mode = "HEAT" if frame.payload[0] >> 4 == 0x01 else "OFF"
+                    desc += f" (Mode={mode}, Curr={curr}C, Set={target}C)"
+            
+            return desc
+        except Exception:
+            return f"Raw: {packet.hex()}"
+
     def generate_command(self, key: DeviceKey, action: str, **kwargs) -> Tuple[bytes, Predicate, float]:
         """디바이스 제어를 위한 RS485 패킷을 생성합니다.
 
@@ -813,8 +840,6 @@ class KocomController:
             data = self._generate_thermostat(key, action, data, **kwargs)
         elif device_type == DeviceType.AIRCONDITIONER:
             data = self._generate_airconditioner(key, action, data, **kwargs)
-        elif device_type == DeviceType.GASVALVE:
-            command = bytes([0x02])
         elif device_type == DeviceType.ELEVATOR:
             dest_dev = bytes([0x01])
             dest_room = bytes([0x00])
@@ -849,19 +874,12 @@ class KocomController:
         return data
 
     def _generate_ventilation(self, key: DeviceKey, action: str, data: bytes, **kwargs: Any) -> bytes:
+        if action == "query":
+            return data
+
         # Retrieve current state for query/default
         st = self.gateway.registry.get(key)
         
-        if action == "query":
-             # Use current known state or defaults
-            is_on = bool(st.state.get("state")) if (st and isinstance(st.state, dict)) else False
-            speed = int(st.state.get("speed", 0)) if (st and isinstance(st.state, dict)) else 0
-            # Re-construct packet based on current state
-            data[0] = 0x11 if is_on else 0x00
-            data[2] = speed
-            # Preset not easily reconstructible without map, but default 0x00 is safe
-            return data
-
         if action == "set_preset":
             pm = kwargs["preset_mode"]
             data[0] = 0x11
@@ -875,19 +893,10 @@ class KocomController:
         return data
     
     def _generate_thermostat(self, key: DeviceKey, action: str, data: bytes, **kwargs: Any) -> bytes:
-        st = self.gateway.registry.get(key)
         if action == "query":
-            # Re-assert
-            if st and isinstance(st.state, dict):
-                 hm = st.state.get("hvac_mode")
-                 data[0] = 0x11 if hm == HVACMode.HEAT else 0x00
-                 data[1] = 0x00 # Preset not strictly tracked in byte 1 for some models, or complex
-                 # We simply query with basic ON/OFF assertion to trigger report
-                 # Target temp assertion
-                 tt = st.state.get("target_temp", 20)
-                 data[2] = int(tt)
             return data
 
+        st = self.gateway.registry.get(key)
         if action == "set_hvac":
             hm = kwargs["hvac_mode"]
             data[0] = 0x11 if hm == HVACMode.HEAT else 0x00
@@ -903,6 +912,9 @@ class KocomController:
         return data
     
     def _generate_airconditioner(self, key: DeviceKey, action: str, data: bytes, **kwargs: Any) -> bytes:
+        if action == "query":
+            return data
+
         # 현재 상태를 먼저 조회하여 기본값으로 설정 (상태 유지)
         st = self.gateway.registry.get(key, include_shadow=True)
         current_hvac = HVACMode.OFF
@@ -925,10 +937,7 @@ class KocomController:
         data[5] = int(current_target)
 
         # 2. 명령(Action)에 따른 오버라이드
-        if action == "query":
-            pass # 이미 위에서 현재 상태를 반영함
-
-        elif action == "set_hvac":
+        if action == "set_hvac":
             hm = kwargs["hvac_mode"]
             if hm == HVACMode.OFF:
                 data[0] = 0x00
