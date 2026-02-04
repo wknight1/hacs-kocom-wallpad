@@ -117,9 +117,10 @@ graph TD
 | **Stop Bits** | `1` | 1 stop bit |
 | **Flow Control** | `None` | 흐름 제어 없음 |
 | **Buffer Size** | `512` | 패킷 처리 최적화 값 |
-| **Gap Time** | `50ms` | 패킷 종료 감지 지연 시간 |
-| **Keep Alive** | `10s` | TCP 연결 유지 간격 |
+| **Gap Time** | `50ms` | 패킷 종료 감지 지연 시간 (v2.4.x 최적값) |
+| **Keep Alive** | `10s` | TCP 연결 유지 간격 (추천) |
 | **Timeout** | `30s` | 소켓 자동 종료 타임아웃 |
+| **Max Accept** | `1` | 동시 접속 제한 (다중 접속 시 충돌 방지) |
 
 ### 2. HACS Installation
 1.  Home Assistant의 **HACS > Integrations** 메뉴로 이동합니다.

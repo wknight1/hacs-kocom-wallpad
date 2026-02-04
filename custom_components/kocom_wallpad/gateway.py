@@ -187,11 +187,11 @@ class KocomGateway:
         asyncio.create_task(self._force_discovery())
 
     def is_available(self) -> bool:
-        """현재 월패드 통신이 가용한지 판단합니다 (30분 이상 무반응 시 불가)."""
+        """현재 월패드 통신이 가용한지 판단합니다 (2분 이상 무반응 시 불가)."""
         if not self.conn._is_connected():
             return False
-        # 월패드로부터 30분(1800초) 이상 패킷이 없으면 가용성 상실로 간주
-        if self.conn.recv_idle_since() > 1800:
+        # 월패드로부터 2분(120초) 이상 패킷이 없으면 가용성 상실로 간주
+        if self.conn.recv_idle_since() > 120:
             return False
         return True
 
@@ -209,9 +209,17 @@ class KocomGateway:
                 if not self.conn._is_connected():
                     continue
                 
+                # 수신 유휴 시간 확인
+                recv_idle = self.conn.recv_idle_since()
+
+                # 60초 이상 무반응 시 강제 재연결 (Zombie Connection 방지)
+                if recv_idle > 60.0:
+                    LOGGER.warning("Gateway: 장시간 무반응(%.1f초) 감지. 연결 재설정을 시도합니다.", recv_idle)
+                    await self.conn.reconnect()
+                    continue
+
                 # 가용성 체크 (로깅)
                 if not self.is_available():
-                    recv_idle = self.conn.recv_idle_since()
                     LOGGER.warning("[System] 월패드 무반응 상태 감지 (수신 유휴: %.1f초). 버스가 조용하거나 전원이 꺼졌을 수 있습니다.", recv_idle)
 
                 idle_time = min(

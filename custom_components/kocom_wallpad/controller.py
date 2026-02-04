@@ -836,6 +836,8 @@ class KocomController:
             data = self._generate_switch(key, action, data)
         elif device_type == DeviceType.VENTILATION:
             data = self._generate_ventilation(key, action, data, **kwargs)
+        elif device_type == DeviceType.GASVALVE:
+            data = self._generate_gasvalve(key, action, data, **kwargs)
         elif device_type == DeviceType.THERMOSTAT:
             data = self._generate_thermostat(key, action, data, **kwargs)
         elif device_type == DeviceType.AIRCONDITIONER:
@@ -890,6 +892,15 @@ class KocomController:
             data[2] = speed
         else:
             data[0] = 0x11 if action == "turn_on" else 0x00
+        return data
+
+    def _generate_gasvalve(self, key: DeviceKey, action: str, data: bytes, **kwargs: Any) -> bytes:
+        if action == "query":
+            return data
+        
+        # 가스 밸브 제어 (잠금만 가능, 열기는 안전상 불가)
+        if action == "turn_off":
+            data[0] = 0x00 # 닫기 명령 Payload (확인 필요)
         return data
     
     def _generate_thermostat(self, key: DeviceKey, action: str, data: bytes, **kwargs: Any) -> bytes:

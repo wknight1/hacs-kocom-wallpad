@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.4.3] - 2026-02-04
+
+### Critical Stability Fixes 🛡️
+- **Proactive Reconnection:** Implemented aggressive reconnection logic that triggers if no data is received from the wallpad for 60 seconds. This effectively solves the "Zombie Connection" issue where the system remains technically connected but unresponsive.
+- **Gas Valve Heartbeat Fixed:** Corrected the command generation for Gas Valve. The 15-second heartbeat (Query) now correctly sends valid RS485 packets, ensuring the connection stays alive and is verified even during idle periods.
+
+### Documentation 📚
+- **EW11 Optimization Guide:** Updated `README.md` with the latest recommended settings for EW11 (Max Accept=1, Gap Time=50ms, etc.) to match the new stability logic.
+
 ## [2.4.2] - 2026-02-01
 
 ### Critical Safety Fixes 🛡️
