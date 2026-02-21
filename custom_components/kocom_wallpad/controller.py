@@ -227,6 +227,12 @@ class KocomController:
         self._rx_buf = RingBuffer(4096)
         self._device_storage: dict[str, Any] = {}
 
+    def close(self) -> None:
+        """컨트롤러 리소스를 정리합니다."""
+        self.gateway = None
+        self._rx_buf.clear()
+        self._device_storage.clear()
+
     @staticmethod
     def _checksum(buf: bytes) -> int:
         """패킷 체크섬을 계산합니다."""

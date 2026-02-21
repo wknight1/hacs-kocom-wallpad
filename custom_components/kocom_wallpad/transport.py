@@ -28,6 +28,7 @@ class AsyncConnection:
         self._last_reconn_delay: float = 0.0
         self._connected = False
         self._reconnect_count = 0
+        self._last_reconn_success = 0.0
         self._reconnect_lock = asyncio.Lock()
 
     async def open(self) -> None:
@@ -52,9 +53,32 @@ class AsyncConnection:
                     asyncio.open_connection(self.host, self.port),
                     timeout=self.connect_timeout,
                 )
+                
+                # TCP Keepalive 활성화 (좀비 연결 방지 강화)
+                try:
+                    sock = self._writer.get_extra_info("socket")
+                    if sock is not None:
+                        import socket
+                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                        # 플랫폼별 옵션 적용 (Linux/macOS) - 보수적인 값으로 설정하여 장비 부담 최소화
+                        # 120초 유휴 시 확인 시작, 30초 간격으로 5회 시도 (약 4.5분 후 최종 끊김 판단)
+                        if hasattr(socket, "TCP_KEEPIDLE"):
+                            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120)
+                        elif hasattr(socket, "TCP_KEEPALIVE") and hasattr(socket, "IPPROTO_TCP"):
+                             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE, 120)
+                        
+                        if hasattr(socket, "TCP_KEEPINTVL"):
+                            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30)
+                        if hasattr(socket, "TCP_KEEPCNT"):
+                            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 5)
+                        LOGGER.debug("Transport: TCP Keepalive 설정 완료 (120s/30s/5)")
+                except Exception as sock_err:
+                    LOGGER.warning("Transport: TCP Keepalive 설정 실패 (무시됨): %s", sock_err)
+
                 LOGGER.info("Transport: 소켓 연결 성공: %s:%s", self.host, self.port)
             self._connected = True
             self._reconnect_count += 1
+            self._last_reconn_success = time.monotonic()
             self._touch()
             self._touch_recv()
         except Exception as e:
@@ -64,10 +88,12 @@ class AsyncConnection:
 
     async def close(self) -> None:
         """연결을 종료하고 자원을 정리합니다."""
-        if not self._connected and self._writer is None:
+        # 연결 플래그를 가장 먼저 내려서 다른 태스크가 접근하지 못하게 함
+        self._connected = False
+        
+        if self._writer is None:
             return
 
-        self._connected = False
         if self._writer is not None:
             try:
                 self._writer.close()
@@ -140,14 +166,15 @@ class AsyncConnection:
             return b""
 
     async def reconnect(self) -> None:
-        """연결을 안전하게 재수립합니다."""
-        if self._reconnect_lock.locked():
-            return
-
+        """연결을 안전하게 재수립합니다 (직렬화 및 디바운스 적용)."""
         async with self._reconnect_lock:
-            if self._is_connected():
+            # 이미 다른 태스크가 최근(5초 내)에 재연결을 완료했다면 중복 수행 방지
+            if self._is_connected() and (time.monotonic() - self._last_reconn_success < 5.0):
+                LOGGER.debug("Transport: 최근에 재연결이 완료되어 요청을 건너뜁니다.")
                 return
 
+            # 재연결 시작 시 즉시 상태를 False로 변경하여 다른 태스크의 접근 차단
+            self._connected = False
             await self.close()
             
             delay_min, delay_max = self.reconnect_backoff

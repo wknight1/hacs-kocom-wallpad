@@ -426,6 +426,11 @@ class KocomGateway:
             if not p.future.done():
                 p.future.set_exception(asyncio.CancelledError())
         self._pendings.clear()
+        
+        if self.controller:
+            self.controller.close()
+            self.controller = None
+            
         await self.conn.close()
 
     def is_idle(self) -> bool:
